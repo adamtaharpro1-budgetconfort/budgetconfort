@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -25,9 +24,9 @@ const ALLERGY_OPTIONS = ["Gluten", "Lactose", "Arachides", "Fruits de mer", "Œu
 const PREF_OPTIONS = ["Végétarien", "Végan", "Halal", "Casher", "Sans sucre", "Pas de restriction"];
 
 export default function OnboardingPage() {
-  const router = useRouter();
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
+  const [done, setDone] = useState(false);
   const [data, setData] = useState<Partial<OnboardingInput>>({
     householdType: "SOLO",
     mainGoal: "TOUT_FAIRE",
@@ -49,16 +48,18 @@ export default function OnboardingPage() {
   }
 
   async function finish() {
+    if (loading || done) return;
     setLoading(true);
     const result = await completeOnboarding(data as OnboardingInput);
-    setLoading(false);
     if (!result.ok) {
+      setLoading(false);
       toast.error(result.error);
       return;
     }
-    toast.success("Ton espace est prêt ✨");
-    router.push("/dashboard");
-    router.refresh();
+    setDone(true);
+    toast.success("Ton espace est prêt ✨ Redirection...");
+    // Hard navigation so the middleware re-reads a fresh session with onboardingDone = true.
+    window.location.href = "/dashboard";
   }
 
   return (
@@ -234,8 +235,8 @@ export default function OnboardingPage() {
         {step < TOTAL_STEPS ? (
           <Button onClick={next}>Continuer</Button>
         ) : (
-          <Button onClick={finish} disabled={loading}>
-            {loading ? "Configuration..." : "C'est parti 🚀"}
+          <Button onClick={finish} disabled={loading || done}>
+            {done ? "C'est prêt, redirection..." : loading ? "Configuration..." : "C'est parti 🚀"}
           </Button>
         )}
       </div>

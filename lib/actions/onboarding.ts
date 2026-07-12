@@ -32,6 +32,12 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
   const data = parsed.data;
 
   const userId = session.user.id;
+
+  const existingMembership = await prisma.householdMember.findFirst({ where: { userId } });
+  if (existingMembership) {
+    return { ok: true };
+  }
+
   const goalToNutritionGoal: Record<string, NutritionGoal> = {
     ECONOMISER: "MAINTAIN",
     MIEUX_MANGER: "MAINTAIN",
