@@ -1,0 +1,96 @@
+@import "tailwindcss";
+@custom-variant dark (&:where(.dark, .dark *));
+
+:root {
+  --background: #fbfaf7;
+  --foreground: #1c2521;
+
+  --card: #ffffff;
+  --card-foreground: #1c2521;
+
+  --primary: #0f8a6c;
+  --primary-foreground: #ffffff;
+
+  --secondary: #f0803c;
+  --secondary-foreground: #ffffff;
+
+  --muted: #f0efe9;
+  --muted-foreground: #6b756f;
+
+  --accent: #eef7f2;
+  --accent-foreground: #0f8a6c;
+
+  --border: #e4e2da;
+  --input: #e4e2da;
+  --ring: #0f8a6c;
+
+  --destructive: #dc4444;
+  --destructive-foreground: #ffffff;
+
+  --success: #16a34a;
+  --warning: #eab308;
+
+  --radius: 0.9rem;
+}
+
+.dark {
+  --background: #101513;
+  --foreground: #eceee9;
+
+  --card: #171d1a;
+  --card-foreground: #eceee9;
+
+  --primary: #22c393;
+  --primary-foreground: #052e22;
+
+  --secondary: #ff9c5a;
+  --secondary-foreground: #3a1c00;
+
+  --muted: #1e2521;
+  --muted-foreground: #9aa39c;
+
+  --accent: #17261f;
+  --accent-foreground: #22c393;
+
+  --border: #262e29;
+  --input: #262e29;
+  --ring: #22c393;
+
+  --destructive: #f0605a;
+  --destructive-foreground: #2a0a08;
+
+  --success: #22c393;
+  --warning: #f2c14e;
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --radius-lg: var(--radius);
+  --radius-md: calc(var(--radius) - 4px);
+  --radius-sm: calc(var(--radius) - 6px);
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+}
+
+body {
+  background: var(--background);
+  color: var(--foreground);
+}
