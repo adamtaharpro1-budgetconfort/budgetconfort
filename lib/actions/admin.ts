@@ -72,6 +72,13 @@ export async function updateUserPlan(userId: string, plan: PlanType, addMonths?:
   return { ok: true };
 }
 
+export async function verifyUserEmail(userId: string): Promise<ActionResult> {
+  await requireAdmin();
+  await prisma.user.update({ where: { id: userId }, data: { emailVerified: new Date() } });
+  revalidatePath("/admin");
+  return { ok: true };
+}
+
 export async function updateUserRole(userId: string, role: "USER" | "ADMIN" | "SUPERADMIN"): Promise<ActionResult> {
   await requireAdmin();
 

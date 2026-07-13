@@ -13,12 +13,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuLabel,
 } from "@/components/ui/dropdown-menu";
-import { MoreVertical, UserCog, Trash2, Crown, Shield } from "lucide-react";
+import { MoreVertical, UserCog, Trash2, Crown, Shield, BadgeCheck } from "lucide-react";
 import {
   updateUserPlan,
   updateUserRole,
   deleteUserAccount,
   impersonateUser,
+  verifyUserEmail,
 } from "@/lib/actions/admin";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -128,11 +129,22 @@ function UserRow({ user, isSuperAdmin, isSelf }: { user: AdminUser; isSuperAdmin
     });
   }
 
+  function handleVerifyEmail() {
+    startTransition(async () => {
+      const result = await verifyUserEmail(user.id);
+      if (result.ok) toast.success(`Email validé pour ${user.email}`);
+      else toast.error(result.error);
+    });
+  }
+
   return (
     <tr className="border-b border-border last:border-0">
       <td className="p-3">
         <p className="font-medium">{user.name}</p>
-        <p className="text-xs text-muted-foreground">{user.email}</p>
+        <p className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          {user.email}
+          {!user.emailVerified && <Badge variant="warning">Non vérifié</Badge>}
+        </p>
       </td>
       <td className="p-3">
         <Badge variant={user.role === "SUPERADMIN" ? "success" : user.role === "ADMIN" ? "default" : "outline"}>
@@ -160,6 +172,14 @@ function UserRow({ user, isSuperAdmin, isSelf }: { user: AdminUser; isSuperAdmin
             <DropdownMenuItem onClick={() => handlePlan("PREMIUM", 12)}>+ 12 mois Premium</DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePlan("UNLIMITED")}>Pass illimité</DropdownMenuItem>
             <DropdownMenuItem onClick={() => handlePlan("FREE")}>Repasser en Gratuit</DropdownMenuItem>
+            {!user.emailVerified && (
+              <>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleVerifyEmail}>
+                  <BadgeCheck className="mr-2 h-4 w-4" /> Valider l&apos;email manuellement
+                </DropdownMenuItem>
+              </>
+            )}
             <DropdownMenuSeparator />
             <DropdownMenuItem onClick={handleImpersonate} disabled={user.role !== "USER"}>
               <UserCog className="mr-2 h-4 w-4" /> Se connecter en tant que
