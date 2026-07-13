@@ -44,7 +44,8 @@ export async function scanFridge(formData: FormData): Promise<ActionResult & { r
   let imageUrl: string;
   try {
     imageUrl = await uploadImage(file, "fridge");
-  } catch {
+  } catch (error) {
+    console.error("[scanFridge] blob upload failed:", error);
     return { ok: false, error: "Le stockage d'images (Vercel Blob) n'est pas encore configuré." };
   }
 
@@ -66,7 +67,8 @@ export async function scanFridge(formData: FormData): Promise<ActionResult & { r
         },
       ],
     });
-  } catch {
+  } catch (error) {
+    console.error("[scanFridge] vision analysis failed:", error);
     return { ok: false, error: "L'analyse IA a échoué." };
   }
 
@@ -101,7 +103,8 @@ export async function scanReceipt(formData: FormData): Promise<ActionResult & { 
   let imageUrl: string;
   try {
     imageUrl = await uploadImage(file, "receipts");
-  } catch {
+  } catch (error) {
+    console.error("[scanReceipt] blob upload failed:", error);
     return { ok: false, error: "Le stockage d'images (Vercel Blob) n'est pas encore configuré." };
   }
 
@@ -123,7 +126,8 @@ export async function scanReceipt(formData: FormData): Promise<ActionResult & { 
         },
       ],
     });
-  } catch {
+  } catch (error) {
+    console.error("[scanReceipt] vision analysis failed:", error);
     return { ok: false, error: "L'analyse IA a échoué." };
   }
 

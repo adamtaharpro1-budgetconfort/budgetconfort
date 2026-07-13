@@ -71,7 +71,8 @@ Pour chaque recette, donne un nom, le temps de préparation, la difficulté, les
   let result;
   try {
     result = await generateObject({ model: AI_MODEL, schema: mealPlanSchema, prompt });
-  } catch {
+  } catch (error) {
+    console.error("[generateAiMealPlan] failed:", error);
     return { ok: false, error: "La génération IA a échoué. Réessaie dans quelques instants." };
   }
 
