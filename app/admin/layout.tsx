@@ -3,10 +3,11 @@ import { auth } from "@/lib/auth";
 import { Sidebar, MobileNav } from "@/components/app-shell/sidebar";
 import { Header } from "@/components/app-shell/header";
 import { ImpersonationBanner } from "@/components/app-shell/impersonation-banner";
+import { SUPERADMIN_EMAIL } from "@/lib/constants";
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const session = await auth();
-  const isAdmin = session?.user?.role === "ADMIN" || session?.user?.role === "SUPERADMIN";
+  const isAdmin = session?.user?.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   if (!isAdmin) redirect("/dashboard");
 
   return (

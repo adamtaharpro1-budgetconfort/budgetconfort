@@ -10,9 +10,7 @@ export default async function AdminPage() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold">Administration</h1>
-        <p className="text-sm text-muted-foreground">
-          Gestion des utilisateurs, abonnements et accès. {session?.user?.role === "SUPERADMIN" && "(Super administrateur)"}
-        </p>
+        <p className="text-sm text-muted-foreground">Gestion des utilisateurs, abonnements et accès.</p>
       </div>
       <AdminClient
         users={users.map((u) => ({
@@ -26,7 +24,7 @@ export default async function AdminPage() {
           onboardingDone: u.onboardingDone,
           createdAt: u.createdAt.toISOString(),
         }))}
-        isSuperAdmin={session?.user?.role === "SUPERADMIN"}
+        isSuperAdmin
         currentUserId={session?.user?.id ?? ""}
       />
     </div>

@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
+import { SUPERADMIN_EMAIL } from "@/lib/constants";
 
 const APP_PREFIXES = [
   "/dashboard",
@@ -20,8 +21,7 @@ const APP_PREFIXES = [
 export default auth((req) => {
   const { nextUrl } = req;
   const isLoggedIn = !!req.auth;
-  const role = req.auth?.user?.role;
-  const isAdmin = role === "ADMIN" || role === "SUPERADMIN";
+  const isAdmin = req.auth?.user?.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   const onboardingDone = req.auth?.user?.onboardingDone;
 
   const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");

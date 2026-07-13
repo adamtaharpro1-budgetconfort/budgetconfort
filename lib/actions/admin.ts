@@ -5,19 +5,23 @@ import { encode, decode } from "next-auth/jwt";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
+import { SUPERADMIN_EMAIL } from "@/lib/constants";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { PlanType } from "@prisma/client";
 
 const SESSION_COOKIE = process.env.NODE_ENV === "production" ? "__Secure-authjs.session-token" : "authjs.session-token";
 const SECRET = process.env.AUTH_SECRET!;
 
+function isSuperAdminEmail(email?: string | null) {
+  return email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
+}
+
 async function requireAdmin() {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session?.user?.id || (role !== "ADMIN" && role !== "SUPERADMIN")) {
+  if (!session?.user?.id || !isSuperAdminEmail(session.user.email)) {
     throw new Error("FORBIDDEN");
   }
-  return { adminId: session.user.id, role };
+  return { adminId: session.user.id };
 }
 
 export async function listUsers(query?: string) {
@@ -69,8 +73,7 @@ export async function updateUserPlan(userId: string, plan: PlanType, addMonths?:
 }
 
 export async function updateUserRole(userId: string, role: "USER" | "ADMIN" | "SUPERADMIN"): Promise<ActionResult> {
-  const { role: callerRole } = await requireAdmin();
-  if (callerRole !== "SUPERADMIN") return { ok: false, error: "Réservé au super administrateur" };
+  await requireAdmin();
 
   await prisma.user.update({ where: { id: userId }, data: { role } });
   revalidatePath("/admin");
@@ -78,8 +81,7 @@ export async function updateUserRole(userId: string, role: "USER" | "ADMIN" | "S
 }
 
 export async function deleteUserAccount(userId: string): Promise<ActionResult> {
-  const { adminId, role } = await requireAdmin();
-  if (role !== "SUPERADMIN") return { ok: false, error: "Réservé au super administrateur" };
+  const { adminId } = await requireAdmin();
   if (userId === adminId) return { ok: false, error: "Impossible de supprimer ton propre compte" };
 
   await prisma.user.delete({ where: { id: userId } });
@@ -89,14 +91,13 @@ export async function deleteUserAccount(userId: string): Promise<ActionResult> {
 
 export async function impersonateUser(targetUserId: string): Promise<ActionResult> {
   const session = await auth();
-  const role = session?.user?.role;
-  if (!session?.user?.id || (role !== "ADMIN" && role !== "SUPERADMIN")) {
+  if (!session?.user?.id || !isSuperAdminEmail(session.user.email)) {
     return { ok: false, error: "Accès refusé" };
   }
 
   const target = await prisma.user.findUnique({ where: { id: targetUserId } });
   if (!target) return { ok: false, error: "Utilisateur introuvable" };
-  if (target.role === "ADMIN" || target.role === "SUPERADMIN") {
+  if (isSuperAdminEmail(target.email)) {
     return { ok: false, error: "Impossible de se connecter en tant qu'administrateur" };
   }
 
