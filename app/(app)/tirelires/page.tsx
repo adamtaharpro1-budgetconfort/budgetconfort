@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
 import { computeBudget } from "@/lib/budget-calc";
 import { EnvelopesClient } from "@/components/envelopes/envelopes-client";
+import { getHouseholdEnvelopes } from "@/lib/actions/envelopes";
 
 export default async function TirelinesPage() {
   const { household } = await requireHousehold();
@@ -13,7 +14,7 @@ export default async function TirelinesPage() {
     prisma.income.findMany({ where: { householdId: household.id } }),
     prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
     prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
-    prisma.budgetEnvelope.findMany({ where: { householdId: household.id }, orderBy: { createdAt: "desc" } }),
+    getHouseholdEnvelopes(household.id),
   ]);
 
   const totalIncome = incomes.reduce((s, i) => s + i.amount, 0);

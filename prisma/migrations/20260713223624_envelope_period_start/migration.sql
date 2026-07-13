@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "BudgetEnvelope" ADD COLUMN     "periodStart" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP;

@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
 import { Sparkles, TriangleAlert } from "lucide-react";
+import { getHouseholdEnvelopes } from "@/lib/actions/envelopes";
 
 export default async function DashboardPage() {
   const { userId, household } = await requireHousehold();
@@ -19,14 +20,14 @@ export default async function DashboardPage() {
   const soonExpiry = new Date();
   soonExpiry.setDate(soonExpiry.getDate() + 4);
 
-  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, envelopes, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
+  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, allEnvelopes, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.income.findMany({ where: { householdId: household.id } }),
       prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
       prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId: household.id }, take: 3 }),
-      prisma.budgetEnvelope.findMany({ where: { householdId: household.id }, orderBy: { createdAt: "desc" }, take: 4 }),
+      getHouseholdEnvelopes(household.id),
       prisma.mealPlanEntry.findMany({
         where: { householdId: household.id, date: { gte: startOfDay, lt: endOfDay } },
         include: { recipe: true },
@@ -48,6 +49,7 @@ export default async function DashboardPage() {
   const totalFixed = fixedExpenses.reduce((s, f) => s + f.amount, 0);
   const variableSpent = transactionsThisMonth.reduce((s, t) => s + t.amount, 0);
   const budget = computeBudget({ totalIncome, totalFixed, variableSpentThisMonth: variableSpent });
+  const envelopes = allEnvelopes.slice(0, 4);
 
   const caloriesTarget = nutritionProfile?.calorieTarget ?? 2000;
   const caloriesConsumed = todayLog?.caloriesConsumed ?? 0;

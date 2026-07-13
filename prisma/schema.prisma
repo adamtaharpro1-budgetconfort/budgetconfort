@@ -292,6 +292,10 @@ model BudgetEnvelope {
   spentAmount   Float    @default(0)
   icon          String?
   createdAt     DateTime @default(now())
+  // Dernier mois pour lequel spentAmount a été comptabilisé : sert à détecter le changement de
+  // mois et remettre spentAmount à 0 automatiquement (reconduction mensuelle du budget), sans
+  // jamais toucher monthlyAmount tant que l'utilisateur ne le modifie pas lui-même.
+  periodStart   DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
