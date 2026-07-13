@@ -15,11 +15,11 @@ export default async function RepasPage() {
   const [entries, favorites] = await Promise.all([
     prisma.mealPlanEntry.findMany({
       where: { householdId: household.id, date: { gte: start, lt: end } },
-      include: { recipe: { include: { favoritedBy: { where: { userId } } } } },
+      include: { recipe: { include: { favoritedBy: { where: { userId } }, ingredients: true } } },
     }),
     prisma.recipe.findMany({
       where: { favoritedBy: { some: { userId } } },
-      include: { favoritedBy: { where: { userId } } },
+      include: { favoritedBy: { where: { userId } }, ingredients: true },
       take: 12,
     }),
   ]);
@@ -43,6 +43,13 @@ export default async function RepasPage() {
               difficulty: e.recipe.difficulty,
               calories: e.recipe.calories,
               priceEstimate: e.recipe.priceEstimate,
+              proteins: e.recipe.proteins,
+              carbs: e.recipe.carbs,
+              fats: e.recipe.fats,
+              servings: e.recipe.servings,
+              cuisine: e.recipe.cuisine,
+              steps: Array.isArray(e.recipe.steps) ? (e.recipe.steps as string[]) : [],
+              ingredients: e.recipe.ingredients.map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
               isFavorite: e.recipe.favoritedBy.length > 0,
             }
           : null,
@@ -64,6 +71,13 @@ export default async function RepasPage() {
           difficulty: r.difficulty,
           calories: r.calories,
           priceEstimate: r.priceEstimate,
+          proteins: r.proteins,
+          carbs: r.carbs,
+          fats: r.fats,
+          servings: r.servings,
+          cuisine: r.cuisine,
+          steps: Array.isArray(r.steps) ? (r.steps as string[]) : [],
+          ingredients: r.ingredients.map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
           isFavorite: true,
         }))}
       />

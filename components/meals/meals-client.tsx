@@ -13,9 +13,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Sparkles, Trash2, Heart, Clock, Flame } from "lucide-react";
+import { Sparkles, Trash2, Heart, Clock, Flame, Users, ChefHat } from "lucide-react";
 import { generateAiMealPlan, removeMealPlanEntry, toggleFavoriteRecipe } from "@/lib/actions/meals";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -37,6 +38,13 @@ interface RecipeInfo {
   difficulty: string;
   calories: number | null;
   priceEstimate: number | null;
+  proteins?: number | null;
+  carbs?: number | null;
+  fats?: number | null;
+  servings?: number;
+  cuisine?: string | null;
+  steps?: string[];
+  ingredients?: { name: string; quantity: number | null; unit: string | null }[];
   isFavorite: boolean;
 }
 
@@ -61,6 +69,8 @@ export function MealsClient({
   currency: string;
   favoriteRecipes: RecipeInfo[];
 }) {
+  const [openRecipe, setOpenRecipe] = useState<RecipeInfo | null>(null);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
@@ -80,7 +90,7 @@ export function MealsClient({
                   <div key={mt.value} className="rounded-md border border-border p-2">
                     <p className="text-[11px] font-medium uppercase text-muted-foreground">{mt.label}</p>
                     {entry?.recipe ? (
-                      <MealSlot entry={entry} currency={currency} />
+                      <MealSlot entry={entry} currency={currency} onOpen={() => setOpenRecipe(entry.recipe)} />
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground/70">Vide</p>
                     )}
@@ -99,22 +109,24 @@ export function MealsClient({
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {favoriteRecipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} currency={currency} />
+              <RecipeCard key={r.id} recipe={r} currency={currency} onOpen={() => setOpenRecipe(r)} />
             ))}
           </CardContent>
         </Card>
       )}
+
+      <RecipeDetailDialog recipe={openRecipe} currency={currency} onClose={() => setOpenRecipe(null)} />
     </div>
   );
 }
 
-function MealSlot({ entry, currency }: { entry: DayEntry; currency: string }) {
+function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: string; onOpen: () => void }) {
   const [isPending, startTransition] = useTransition();
   if (!entry.recipe) return null;
   return (
     <div className="mt-1 flex items-start justify-between gap-2">
-      <div>
-        <p className="text-sm font-medium">{entry.recipe.name}</p>
+      <button type="button" onClick={onOpen} className="flex-1 text-left">
+        <p className="text-sm font-medium hover:underline">{entry.recipe.name}</p>
         <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
           {entry.recipe.calories && (
             <span className="flex items-center gap-0.5">
@@ -128,7 +140,7 @@ function MealSlot({ entry, currency }: { entry: DayEntry; currency: string }) {
           )}
           {entry.recipe.priceEstimate != null && <span>{formatCurrency(entry.recipe.priceEstimate, currency)}</span>}
         </div>
-      </div>
+      </button>
       <button
         disabled={isPending}
         onClick={() => startTransition(() => removeMealPlanEntry(entry.id))}
@@ -140,13 +152,21 @@ function MealSlot({ entry, currency }: { entry: DayEntry; currency: string }) {
   );
 }
 
-function RecipeCard({ recipe, currency }: { recipe: RecipeInfo; currency: string }) {
+function RecipeCard({ recipe, currency, onOpen }: { recipe: RecipeInfo; currency: string; onOpen: () => void }) {
   const [isPending, startTransition] = useTransition();
   return (
     <div className="rounded-md border border-border p-3">
       <div className="flex items-start justify-between">
-        <p className="text-sm font-medium">{recipe.name}</p>
-        <button disabled={isPending} onClick={() => startTransition(() => toggleFavoriteRecipe(recipe.id))}>
+        <button type="button" onClick={onOpen} className="text-left text-sm font-medium hover:underline">
+          {recipe.name}
+        </button>
+        <button
+          disabled={isPending}
+          onClick={(e) => {
+            e.stopPropagation();
+            startTransition(() => toggleFavoriteRecipe(recipe.id));
+          }}
+        >
           <Heart className={cn("h-4 w-4", recipe.isFavorite ? "fill-destructive text-destructive" : "text-muted-foreground")} />
         </button>
       </div>
@@ -156,6 +176,91 @@ function RecipeCard({ recipe, currency }: { recipe: RecipeInfo; currency: string
         <Badge variant="outline">{recipe.difficulty}</Badge>
       </div>
     </div>
+  );
+}
+
+function RecipeDetailDialog({
+  recipe,
+  currency,
+  onClose,
+}: {
+  recipe: RecipeInfo | null;
+  currency: string;
+  onClose: () => void;
+}) {
+  return (
+    <Dialog open={!!recipe} onOpenChange={(open) => !open && onClose()}>
+      <DialogContent className="max-h-[85vh] overflow-y-auto">
+        {recipe && (
+          <>
+            <DialogHeader>
+              <DialogTitle>{recipe.name}</DialogTitle>
+              {recipe.cuisine && <DialogDescription>Cuisine {recipe.cuisine}</DialogDescription>}
+            </DialogHeader>
+
+            <div className="flex flex-wrap gap-2">
+              <Badge variant="outline">{recipe.difficulty}</Badge>
+              {recipe.prepTime && (
+                <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />{recipe.prepTime} min</Badge>
+              )}
+              {recipe.calories && (
+                <Badge variant="outline"><Flame className="mr-1 h-3 w-3" />{recipe.calories} kcal</Badge>
+              )}
+              {recipe.servings && (
+                <Badge variant="outline"><Users className="mr-1 h-3 w-3" />{recipe.servings} pers.</Badge>
+              )}
+              {recipe.priceEstimate != null && <Badge variant="outline">{formatCurrency(recipe.priceEstimate, currency)}</Badge>}
+            </div>
+
+            {(recipe.proteins != null || recipe.carbs != null || recipe.fats != null) && (
+              <div className="grid grid-cols-3 gap-2 rounded-md bg-muted p-3 text-center text-sm">
+                <div>
+                  <p className="font-semibold">{recipe.proteins ?? "-"}g</p>
+                  <p className="text-[11px] text-muted-foreground">Protéines</p>
+                </div>
+                <div>
+                  <p className="font-semibold">{recipe.carbs ?? "-"}g</p>
+                  <p className="text-[11px] text-muted-foreground">Glucides</p>
+                </div>
+                <div>
+                  <p className="font-semibold">{recipe.fats ?? "-"}g</p>
+                  <p className="text-[11px] text-muted-foreground">Lipides</p>
+                </div>
+              </div>
+            )}
+
+            {recipe.ingredients && recipe.ingredients.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">Ingrédients</h3>
+                <ul className="space-y-1 text-sm text-muted-foreground">
+                  {recipe.ingredients.map((ing, i) => (
+                    <li key={i}>
+                      • {ing.name}
+                      {ing.quantity ? ` — ${ing.quantity}${ing.unit ?? ""}` : ing.unit ? ` — ${ing.unit}` : ""}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {recipe.steps && recipe.steps.length > 0 && (
+              <div>
+                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold">
+                  <ChefHat className="h-4 w-4" /> Étapes
+                </h3>
+                <ol className="space-y-2 text-sm text-muted-foreground">
+                  {recipe.steps.map((step, i) => (
+                    <li key={i} className="flex gap-2">
+                      <span className="font-medium text-foreground">{i + 1}.</span> {step}
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+          </>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 
