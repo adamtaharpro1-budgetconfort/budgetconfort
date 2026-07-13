@@ -6,12 +6,39 @@ import { computeBudget } from "@/lib/budget-calc";
 
 export const maxDuration = 60;
 
+function textOf(message: UIMessage): string {
+  return message.parts
+    .filter((p): p is { type: "text"; text: string } => p.type === "text")
+    .map((p) => p.text)
+    .join("");
+}
+
 export async function POST(req: Request) {
   const session = await auth();
   if (!session?.user?.id) return new Response("Unauthorized", { status: 401 });
-
-  const { messages }: { messages: UIMessage[] } = await req.json();
   const userId = session.user.id;
+
+  const { messages, conversationId }: { messages: UIMessage[]; conversationId: string } = await req.json();
+
+  const conversation = await prisma.chatConversation.findFirst({ where: { id: conversationId, userId } });
+  if (!conversation) return new Response("Conversation introuvable", { status: 404 });
+
+  const lastMessage = messages[messages.length - 1];
+  if (lastMessage?.role === "user") {
+    const existingCount = await prisma.chatMessage.count({ where: { conversationId } });
+    const userText = textOf(lastMessage);
+
+    await prisma.chatMessage.create({
+      data: { conversationId, userId, role: "user", content: userText },
+    });
+
+    if (existingCount === 0) {
+      await prisma.chatConversation.update({
+        where: { id: conversationId },
+        data: { title: userText.slice(0, 60) || "Nouvelle conversation" },
+      });
+    }
+  }
 
   const membership = await prisma.householdMember.findFirst({
     where: { userId },
@@ -56,6 +83,15 @@ Sois chaleureux, concret et actionnable. Réponds en français, de façon concis
 Voici le contexte actuel de l'utilisateur :
 ${contextBlock}`,
     messages: await convertToModelMessages(messages),
+    onFinish: async ({ text }) => {
+      await prisma.chatMessage.create({
+        data: { conversationId, userId, role: "assistant", content: text },
+      });
+      await prisma.chatConversation.update({
+        where: { id: conversationId },
+        data: { updatedAt: new Date() },
+      });
+    },
   });
 
   return result.toUIMessageStreamResponse();
