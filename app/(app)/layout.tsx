@@ -17,7 +17,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
           <Header name={session?.user?.name || "LifePilot"} image={session?.user?.image} />
           <main className="flex-1 overflow-y-auto bg-background p-4 pb-20 md:p-6 md:pb-6">{children}</main>
         </div>
-        <MobileNav />
+        <MobileNav isAdmin={isAdmin} />
       </div>
     </div>
   );
