@@ -6,18 +6,29 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
 import { AI_MODEL } from "@/lib/ai";
-import { SHOPPING_AISLES } from "@/lib/shopping-aisles";
+import { SHOPPING_AISLES, AISLE_EXAMPLES } from "@/lib/shopping-aisles";
 
 async function categorizeIngredients(names: string[]): Promise<Record<string, string>> {
   if (names.length === 0) return {};
+
+  const aisleGuide = SHOPPING_AISLES.map((a) => `- ${a} : ${AISLE_EXAMPLES[a]}`).join("\n");
+
   try {
     const result = await generateObject({
       model: AI_MODEL,
       schema: z.object({
         items: z.array(z.object({ name: z.string(), aisle: z.enum(SHOPPING_AISLES) })),
       }),
-      prompt: `Classe chacun de ces produits alimentaires dans le rayon de supermarché le plus adapté parmi : ${SHOPPING_AISLES.join(", ")}.
-Produits : ${names.join(", ")}`,
+      prompt: `Tu es expert en organisation de supermarché. Classe CHAQUE produit ci-dessous dans un seul rayon, en choisissant le plus précis et le plus pertinent parmi cette liste (ne jamais inventer un rayon en dehors de cette liste) :
+
+${aisleGuide}
+
+Règles :
+- Utilise "Autre" uniquement si le produit ne correspond vraiment à aucun rayon ci-dessus.
+- Un produit frais (viande, poisson, fruits, légumes, crèmerie) ne doit jamais aller dans "Épicerie salée" ou "Épicerie sucrée".
+- Renvoie exactement un rayon pour chaque produit de la liste, dans le même ordre.
+
+Produits à classer (${names.length}) : ${names.join(", ")}`,
     });
     const map: Record<string, string> = {};
     for (const item of result.object.items) {
@@ -105,4 +116,26 @@ export async function generateShoppingListFromMealPlan() {
 
   revalidatePath("/courses");
   return { ok: true as const, count: toCreate.length };
+}
+
+export async function recategorizeShoppingList() {
+  const { householdId } = await requireSessionHousehold();
+  const list = await prisma.shoppingList.findFirst({ where: { householdId, status: "ACTIVE" }, include: { items: true } });
+  if (!list || list.items.length === 0) return { ok: true as const, count: 0 };
+
+  const aisleByName = await categorizeIngredients(list.items.map((i) => i.name));
+
+  let count = 0;
+  await Promise.all(
+    list.items.map(async (item) => {
+      const aisle = aisleByName[item.name.toLowerCase().trim()];
+      if (aisle && aisle !== item.category) {
+        count++;
+        await prisma.shoppingListItem.update({ where: { id: item.id }, data: { category: aisle } });
+      }
+    })
+  );
+
+  revalidatePath("/courses");
+  return { ok: true as const, count };
 }
