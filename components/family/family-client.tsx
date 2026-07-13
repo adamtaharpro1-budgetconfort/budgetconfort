@@ -15,9 +15,11 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, User as UserIcon, Baby, Pencil } from "lucide-react";
+import { Plus, Trash2, User as UserIcon, Baby, Pencil, Link2, Copy, X } from "lucide-react";
 import { addFamilyMember, updateFamilyMember, deleteFamilyMember, type FamilyMemberInput } from "@/lib/actions/family";
+import { createFamilyInvite, cancelInvite } from "@/lib/actions/invite";
 import { toast } from "sonner";
+import { formatDate } from "@/lib/utils";
 
 interface Member {
   id: string;
@@ -32,7 +34,15 @@ interface Member {
   role: string;
 }
 
-export function FamilyClient({ members }: { members: Member[] }) {
+interface Invite {
+  id: string;
+  label: string | null;
+  isChild: boolean;
+  token: string;
+  createdAt: string;
+}
+
+export function FamilyClient({ members, invites }: { members: Member[]; invites: Invite[] }) {
   const adults = members.filter((m) => !m.isChild);
   const children = members.filter((m) => m.isChild);
 
@@ -53,9 +63,23 @@ export function FamilyClient({ members }: { members: Member[] }) {
         </Card>
       </div>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <InviteDialog />
         <MemberDialog />
       </div>
+
+      {invites.length > 0 && (
+        <Card>
+          <CardContent className="p-4">
+            <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Invitations en attente</h3>
+            <ul className="divide-y divide-border">
+              {invites.map((invite) => (
+                <InviteRow key={invite.id} invite={invite} />
+              ))}
+            </ul>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {members.map((m) => (
@@ -63,6 +87,124 @@ export function FamilyClient({ members }: { members: Member[] }) {
         ))}
       </div>
     </div>
+  );
+}
+
+function InviteRow({ invite }: { invite: Invite }) {
+  const [isPending, startTransition] = useTransition();
+  const url = typeof window !== "undefined" ? `${window.location.origin}/rejoindre-famille?token=${invite.token}` : "";
+
+  function handleCopy() {
+    navigator.clipboard.writeText(url);
+    toast.success("Lien copié");
+  }
+
+  function handleCancel() {
+    startTransition(async () => {
+      await cancelInvite(invite.id);
+    });
+  }
+
+  return (
+    <li className="flex items-center justify-between py-2.5">
+      <div>
+        <p className="text-sm font-medium">{invite.label || "Invitation"} {invite.isChild && <Badge variant="outline" className="ml-1">Enfant</Badge>}</p>
+        <p className="text-xs text-muted-foreground">Créée le {formatDate(invite.createdAt)}</p>
+      </div>
+      <div className="flex items-center gap-3">
+        <button onClick={handleCopy} className="text-muted-foreground hover:text-foreground" title="Copier le lien">
+          <Copy className="h-4 w-4" />
+        </button>
+        <button disabled={isPending} onClick={handleCancel} className="text-muted-foreground hover:text-destructive" title="Annuler">
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+    </li>
+  );
+}
+
+function InviteDialog() {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [isChild, setIsChild] = useState(false);
+  const [generatedUrl, setGeneratedUrl] = useState<string | null>(null);
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    const result = await createFamilyInvite({
+      label: (form.get("label") as string) || undefined,
+      isChild,
+    });
+    setLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    if (!result.url) {
+      toast.error("Erreur lors de la génération du lien");
+      return;
+    }
+    setGeneratedUrl(result.url);
+  }
+
+  function handleCopy() {
+    if (!generatedUrl) return;
+    navigator.clipboard.writeText(generatedUrl);
+    toast.success("Lien copié — envoie-le par SMS, WhatsApp...");
+  }
+
+  function handleClose(v: boolean) {
+    setOpen(v);
+    if (!v) {
+      setGeneratedUrl(null);
+      setIsChild(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogTrigger asChild>
+        <Button size="sm" variant="outline">
+          <Link2 className="h-4 w-4" /> Inviter par lien
+        </Button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Inviter un membre de la famille</DialogTitle>
+        </DialogHeader>
+        {generatedUrl ? (
+          <div className="space-y-3">
+            <p className="text-sm text-muted-foreground">
+              Envoie ce lien à la personne (SMS, WhatsApp...). En l&apos;ouvrant, elle pourra se connecter ou
+              créer son compte puis rejoindre ton foyer.
+            </p>
+            <div className="flex gap-2">
+              <Input readOnly value={generatedUrl} className="text-xs" />
+              <Button type="button" onClick={handleCopy}><Copy className="h-4 w-4" /></Button>
+            </div>
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => handleClose(false)}>Fermer</Button>
+            </DialogFooter>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="space-y-2">
+              <Label>Nom (optionnel)</Label>
+              <Input name="label" placeholder="Ex: Sarah" />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <Checkbox checked={isChild} onCheckedChange={(v) => setIsChild(!!v)} />
+              C&apos;est un enfant
+            </label>
+            <DialogFooter>
+              <Button type="submit" disabled={loading}>{loading ? "..." : "Générer le lien"}</Button>
+            </DialogFooter>
+          </form>
+        )}
+      </DialogContent>
+    </Dialog>
   );
 }
 

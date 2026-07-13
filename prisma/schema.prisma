@@ -142,6 +142,7 @@ model Household {
   pantryItems      PantryItem[]
   shoppingLists    ShoppingList[]
   receipts         Receipt[]
+  invites          HouseholdInvite[]
 }
 
 model HouseholdMember {
@@ -164,6 +165,20 @@ model HouseholdMember {
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, userId])
+}
+
+model HouseholdInvite {
+  id          String   @id @default(cuid())
+  householdId String
+  label       String? // nom prévu ("Sarah") — informatif, n'importe qui avec le lien peut rejoindre
+  isChild     Boolean  @default(false)
+  token       String   @unique
+  status      String   @default("PENDING") // PENDING, ACCEPTED, CANCELLED
+  invitedBy   String
+  createdAt   DateTime @default(now())
+  expiresAt   DateTime
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
 
 // ============ FINANCE ============

@@ -1,15 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
 import { FamilyClient } from "@/components/family/family-client";
+import { listInvites } from "@/lib/actions/invite";
 
 export default async function FamillePage() {
   const { household } = await requireHousehold();
 
-  const members = await prisma.householdMember.findMany({
-    where: { householdId: household.id },
-    include: { user: { select: { firstName: true, email: true, image: true } } },
-    orderBy: { joinedAt: "asc" },
-  });
+  const [members, invites] = await Promise.all([
+    prisma.householdMember.findMany({
+      where: { householdId: household.id },
+      include: { user: { select: { firstName: true, email: true, image: true } } },
+      orderBy: { joinedAt: "asc" },
+    }),
+    listInvites(),
+  ]);
 
   return (
     <div className="space-y-6">
@@ -32,6 +36,13 @@ export default async function FamillePage() {
           hasAccount: !!m.userId,
           accountEmail: m.user?.email ?? null,
           role: m.role,
+        }))}
+        invites={invites.map((i) => ({
+          id: i.id,
+          label: i.label,
+          isChild: i.isChild,
+          token: i.token,
+          createdAt: i.createdAt.toISOString(),
         }))}
       />
     </div>
