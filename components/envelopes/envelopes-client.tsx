@@ -76,7 +76,12 @@ function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: st
   const hasCarryOver = envelope.balance > envelope.monthlyAmount;
 
   function handleReset() {
-    if (!window.confirm("Remettre le solde à " + formatCurrency(envelope.monthlyAmount, currency) + " ? Le cumul accumulé sera perdu.")) return;
+    const lost = envelope.balance - envelope.monthlyAmount;
+    const message =
+      lost > 0
+        ? `Tu vas perdre ${formatCurrency(lost, currency)} de cumul (solde actuel ${formatCurrency(envelope.balance, currency)} → ${formatCurrency(envelope.monthlyAmount, currency)}). Cette action ne se fait jamais automatiquement, uniquement si tu la déclenches toi-même. Confirmer ?`
+        : `Remettre le solde à ${formatCurrency(envelope.monthlyAmount, currency)} ?`;
+    if (!window.confirm(message)) return;
     startTransition(async () => {
       await resetEnvelope(envelope.id);
       toast.success("Solde remis au montant mensuel");
@@ -95,14 +100,9 @@ function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: st
         <CardTitle className="flex items-center gap-2 text-base">
           <PiggyBank className="h-4 w-4 text-primary" /> {envelope.name}
         </CardTitle>
-        <div className="flex items-center gap-1">
-          <button disabled={isPending} onClick={handleReset} title="Remettre au montant mensuel (perd le cumul)" className="text-muted-foreground hover:text-foreground">
-            <RotateCcw className="h-3.5 w-3.5" />
-          </button>
-          <button disabled={isPending} onClick={handleDelete} className="text-muted-foreground hover:text-destructive">
-            <Trash2 className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        <button disabled={isPending} onClick={handleDelete} className="text-muted-foreground hover:text-destructive">
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
       </CardHeader>
       <CardContent>
         <div className="flex items-center gap-2">
@@ -116,9 +116,16 @@ function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: st
           )}
         </div>
         <p className="mt-1 text-xs text-muted-foreground">
-          disponible · +{formatCurrency(envelope.monthlyAmount, currency)} ajoutés chaque mois
+          disponible · +{formatCurrency(envelope.monthlyAmount, currency)} ajoutés chaque mois, jamais remis à 0 automatiquement
         </p>
         <SpendButton envelopeId={envelope.id} currency={currency} />
+        <button
+          disabled={isPending}
+          onClick={handleReset}
+          className="mt-2 flex w-full items-center justify-center gap-1 text-[11px] text-muted-foreground hover:text-foreground"
+        >
+          <RotateCcw className="h-3 w-3" /> Remettre au montant mensuel (perd le cumul)
+        </button>
       </CardContent>
     </Card>
   );
