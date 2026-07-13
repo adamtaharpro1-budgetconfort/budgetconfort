@@ -1,17 +1,19 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange } from "@/lib/budget-calc";
 import { EnvelopesClient } from "@/components/envelopes/envelopes-client";
 import { getHouseholdEnvelopes } from "@/lib/actions/envelopes";
+import { Card, CardContent } from "@/components/ui/card";
+import Link from "next/link";
 
 export default async function TirelinesPage() {
   const { household } = await requireHousehold();
 
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { start: startOfMonth, end: endOfMonth } = getMonthRange(now);
 
   const [incomes, fixedExpenses, transactionsThisMonth, envelopes] = await Promise.all([
-    prisma.income.findMany({ where: { householdId: household.id } }),
+    prisma.income.findMany({ where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } } }),
     prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
     prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
     getHouseholdEnvelopes(household.id),
@@ -30,6 +32,18 @@ export default async function TirelinesPage() {
           Répartis l&apos;argent disponible une fois tes charges payées : budget restaurant, loisirs, argent de côté...
         </p>
       </div>
+      {incomes.length === 0 && (
+        <Card className="border-warning/40 bg-warning/10">
+          <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm">
+              <span className="font-medium">Aucun revenu renseigné ce mois-ci.</span> L&apos;argent disponible affiché est à 0€.
+            </p>
+            <Link href="/budget" className="shrink-0 text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Ajouter mes revenus →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
       <EnvelopesClient
         currency={household.currency}
         envelopes={envelopes}

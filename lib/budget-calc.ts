@@ -12,6 +12,13 @@ export function dayOfMonth(date = new Date()) {
   return date.getDate();
 }
 
+/** Bornes [début, fin) du mois calendaire de `date` — sert à ne compter que les revenus du mois en cours. */
+export function getMonthRange(date = new Date()) {
+  const start = new Date(date.getFullYear(), date.getMonth(), 1);
+  const end = new Date(date.getFullYear(), date.getMonth() + 1, 1);
+  return { start, end };
+}
+
 export function computeBudget(snapshot: BudgetSnapshot, now = new Date()) {
   const { totalIncome, totalFixed, variableSpentThisMonth } = snapshot;
   const totalDays = daysInMonth(now);

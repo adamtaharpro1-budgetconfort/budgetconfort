@@ -1,15 +1,20 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange } from "@/lib/budget-calc";
 import { BudgetClient } from "@/components/budget/budget-client";
+
+const MONTH_LABEL = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
 
 export default async function BudgetPage() {
   const { household } = await requireHousehold();
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { start: startOfMonth, end: endOfMonth } = getMonthRange(now);
 
   const [incomes, fixedExpenses, transactions] = await Promise.all([
-    prisma.income.findMany({ where: { householdId: household.id }, orderBy: { date: "desc" } }),
+    prisma.income.findMany({
+      where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } },
+      orderBy: { date: "desc" },
+    }),
     prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
     prisma.transaction.findMany({
       where: { householdId: household.id, date: { gte: startOfMonth } },
@@ -30,6 +35,7 @@ export default async function BudgetPage() {
       <BudgetClient
         currency={household.currency}
         budget={budget}
+        currentMonthLabel={MONTH_LABEL.format(now)}
         incomes={incomes.map((i) => ({ id: i.id, label: i.label, amount: i.amount, meta: i.type }))}
         fixedExpenses={fixedExpenses.map((f) => ({
           id: f.id,

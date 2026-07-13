@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange } from "@/lib/budget-calc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +13,7 @@ export default async function DashboardPage() {
   const { userId, household } = await requireHousehold();
 
   const now = new Date();
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+  const { start: startOfMonth, end: endOfMonth } = getMonthRange(now);
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(startOfDay);
   endOfDay.setDate(endOfDay.getDate() + 1);
@@ -23,7 +23,7 @@ export default async function DashboardPage() {
   const [user, incomes, fixedExpenses, transactionsThisMonth, goals, allEnvelopes, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
-      prisma.income.findMany({ where: { householdId: household.id } }),
+      prisma.income.findMany({ where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } } }),
       prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
       prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId: household.id }, take: 3 }),
@@ -69,6 +69,20 @@ export default async function DashboardPage() {
         <h1 className="text-2xl font-semibold">Bonjour {user?.firstName ?? ""} 👋</h1>
         <p className="text-muted-foreground">{formatDate(now)}</p>
       </div>
+
+      {incomes.length === 0 && (
+        <Card className="border-warning/40 bg-warning/10">
+          <CardContent className="flex flex-col gap-2 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <p className="text-sm">
+              <span className="font-medium">Tu n&apos;as pas encore renseigné tes revenus de ce mois-ci.</span>{" "}
+              Ton budget disponible est calculé à 0€ tant que tu ne les ajoutes pas.
+            </p>
+            <Link href="/budget" className="shrink-0 text-sm font-medium text-primary underline-offset-4 hover:underline">
+              Ajouter mes revenus →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard

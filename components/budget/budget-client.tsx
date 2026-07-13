@@ -52,6 +52,7 @@ export function BudgetClient({
   fixedExpenses,
   transactions,
   customFixedCategories,
+  currentMonthLabel,
 }: {
   currency: string;
   budget: { budgetRemaining: number; dailyBudget: number; projectedEndOfMonth: number; percentUsed: number; availableForVariable: number };
@@ -59,6 +60,7 @@ export function BudgetClient({
   fixedExpenses: Row[];
   transactions: Row[];
   customFixedCategories: string[];
+  currentMonthLabel: string;
 }) {
   return (
     <div className="space-y-6">
@@ -96,7 +98,8 @@ export function BudgetClient({
       </Card>
 
       <Section
-        title="Revenus"
+        title={`Revenus de ${currentMonthLabel}`}
+        emptyLabel="Aucun revenu renseigné pour ce mois-ci. Ajoute ton salaire ou tes rentrées d'argent du mois."
         rows={incomes}
         currency={currency}
         onDelete={(id) => deleteIncome(id)}
@@ -126,12 +129,14 @@ function Section({
   currency,
   onDelete,
   addDialog,
+  emptyLabel,
 }: {
   title: string;
   rows: Row[];
   currency: string;
   onDelete: (id: string) => Promise<void>;
   addDialog: React.ReactNode;
+  emptyLabel?: string;
 }) {
   const [isPending, startTransition] = useTransition();
   return (
@@ -142,7 +147,7 @@ function Section({
       </CardHeader>
       <CardContent>
         {rows.length === 0 ? (
-          <p className="text-sm text-muted-foreground">Rien pour l&apos;instant.</p>
+          <p className="text-sm text-muted-foreground">{emptyLabel ?? "Rien pour l'instant."}</p>
         ) : (
           <ul className="divide-y divide-border">
             {rows.map((r) => (
@@ -199,15 +204,18 @@ function AddIncomeDialog() {
         <Button size="sm" variant="outline"><Plus className="h-4 w-4" /> Ajouter</Button>
       </DialogTrigger>
       <DialogContent>
-        <DialogHeader><DialogTitle>Ajouter un revenu</DialogTitle></DialogHeader>
+        <DialogHeader><DialogTitle>Ajouter un revenu de ce mois</DialogTitle></DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Libellé</Label>
-            <Input name="label" required />
+            <Input name="label" required placeholder="Ex: Salaire juillet" />
           </div>
           <div className="space-y-2">
             <Label>Montant</Label>
             <Input name="amount" type="number" step="0.01" required />
+            <p className="text-xs text-muted-foreground">
+              💡 Astuce : arrondis à la centaine inférieure par sécurité (ex : 2 350 € → 2 300 €).
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Type</Label>
