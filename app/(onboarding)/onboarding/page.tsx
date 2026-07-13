@@ -29,6 +29,9 @@ export default function OnboardingPage() {
   const [done, setDone] = useState(false);
   const [data, setData] = useState<Partial<OnboardingInput>>({
     householdType: "SOLO",
+    adultsCount: 1,
+    childrenCount: 0,
+    childrenAges: [],
     mainGoal: "TOUT_FAIRE",
     sex: "F",
     activityLevel: "MODERATE",
@@ -84,19 +87,86 @@ export default function OnboardingPage() {
         <StepCard title="Tu vis seul, en couple ou en famille ?">
           <div className="grid grid-cols-3 gap-3">
             {[
-              { value: "SOLO", label: "Seul(e)" },
-              { value: "COUPLE", label: "En couple" },
-              { value: "FAMILY", label: "En famille" },
+              { value: "SOLO", label: "Seul(e)", adults: 1, children: 0 },
+              { value: "COUPLE", label: "En couple", adults: 2, children: 0 },
+              { value: "FAMILY", label: "En famille", adults: 2, children: 1 },
             ].map((opt) => (
               <ChoiceButton
                 key={opt.value}
                 selected={data.householdType === opt.value}
-                onClick={() => update("householdType", opt.value as OnboardingInput["householdType"])}
+                onClick={() => {
+                  update("householdType", opt.value as OnboardingInput["householdType"]);
+                  update("adultsCount", opt.adults);
+                  update("childrenCount", opt.children);
+                  update("childrenAges", Array(opt.children).fill(6));
+                }}
               >
                 {opt.label}
               </ChoiceButton>
             ))}
           </div>
+
+          {data.householdType === "FAMILY" && (
+            <div className="mt-6 space-y-4 rounded-lg border border-border p-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label>Nombre d&apos;adultes</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={10}
+                    value={data.adultsCount ?? 2}
+                    onChange={(e) => update("adultsCount", Math.max(Number(e.target.value), 1))}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>Nombre d&apos;enfants</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={10}
+                    value={data.childrenCount ?? 0}
+                    onChange={(e) => {
+                      const count = Math.max(Number(e.target.value), 0);
+                      const ages = data.childrenAges ?? [];
+                      update("childrenCount", count);
+                      update(
+                        "childrenAges",
+                        Array.from({ length: count }, (_, i) => ages[i] ?? 6)
+                      );
+                    }}
+                  />
+                </div>
+              </div>
+              {(data.childrenCount ?? 0) > 0 && (
+                <div className="space-y-2">
+                  <Label>Âge de chaque enfant</Label>
+                  <div className="grid grid-cols-3 gap-3">
+                    {Array.from({ length: data.childrenCount ?? 0 }).map((_, i) => (
+                      <div key={i} className="space-y-1">
+                        <p className="text-xs text-muted-foreground">Enfant {i + 1}</p>
+                        <Input
+                          type="number"
+                          min={0}
+                          max={17}
+                          value={data.childrenAges?.[i] ?? 6}
+                          onChange={(e) => {
+                            const ages = [...(data.childrenAges ?? [])];
+                            ages[i] = Number(e.target.value);
+                            update("childrenAges", ages);
+                          }}
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+              <p className="text-xs text-muted-foreground">
+                Tu pourras compléter le profil de chaque membre (nutrition, objectifs) plus tard dans
+                l&apos;espace Famille.
+              </p>
+            </div>
+          )}
         </StepCard>
       )}
 

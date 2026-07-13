@@ -47,17 +47,27 @@ export interface GenerateMealPlanInput {
 export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<ActionResult & { adviceMessage?: string }> {
   const { userId, householdId } = await requireSessionHousehold();
 
-  const [nutritionProfile, pantryItems] = await Promise.all([
+  const [nutritionProfile, pantryItems, members] = await Promise.all([
     prisma.nutritionProfile.findUnique({ where: { userId } }),
     prisma.pantryItem.findMany({ where: { householdId }, take: 30, select: { name: true } }),
+    prisma.householdMember.findMany({ where: { householdId }, select: { isChild: true, age: true } }),
   ]);
 
   const startDate = input.startDate ?? new Date();
   const pantryNames = pantryItems.map((p) => p.name).join(", ") || "aucun produit en stock connu";
 
+  const adultsCount = members.filter((m) => !m.isChild).length || input.servings;
+  const childrenCount = members.filter((m) => m.isChild).length;
+  const childrenAges = members.filter((m) => m.isChild && m.age != null).map((m) => m.age);
+  const householdBreakdown =
+    childrenCount > 0
+      ? `Composition du foyer : ${adultsCount} adulte(s) et ${childrenCount} enfant(s)${childrenAges.length ? ` (âges : ${childrenAges.join(", ")})` : ""}. Adapte les portions : portions pleines pour les adultes, portions réduites et adaptées au goût des enfants selon leur âge.`
+      : `Composition du foyer : ${input.servings} personne(s) (portions standards pour tous).`;
+
   const prompt = `Tu es un chef cuisinier et nutritionniste. Génère un plan de repas de ${input.numDays} jour(s) pour ${input.servings} personne(s).
 
 Contraintes :
+- ${householdBreakdown}
 - Repas à générer chaque jour : ${input.mealTypes.join(", ")}
 - Budget total pour la période : ${input.budgetTotal ? `${input.budgetTotal} €` : "raisonnable, sans contrainte stricte"}
 - Objectif calorique quotidien par personne : ${nutritionProfile?.calorieTarget ?? "environ 2000"} kcal

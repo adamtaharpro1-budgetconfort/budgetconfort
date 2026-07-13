@@ -9,6 +9,9 @@ import type { ActionResult } from "@/lib/actions/auth";
 const onboardingSchema = z.object({
   firstName: z.string().min(1),
   householdType: z.enum(["SOLO", "COUPLE", "FAMILY"]),
+  adultsCount: z.number().min(1).max(10).default(1),
+  childrenCount: z.number().min(0).max(10).default(0),
+  childrenAges: z.array(z.number().min(0).max(17)).default([]),
   monthlyIncome: z.number().min(0),
   rent: z.number().min(0),
   mainGoal: z.enum(["ECONOMISER", "MIEUX_MANGER", "PERDRE_POIDS", "ORGANISER_COURSES", "TOUT_FAIRE"]),
@@ -72,6 +75,30 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
         label: data.firstName,
       },
     });
+
+    const extraAdults = Math.max(data.adultsCount - 1, 0);
+    for (let i = 0; i < extraAdults; i++) {
+      await tx.householdMember.create({
+        data: {
+          householdId: household.id,
+          role: "MEMBER",
+          label: `Adulte ${i + 2}`,
+          isChild: false,
+        },
+      });
+    }
+
+    for (let i = 0; i < data.childrenCount; i++) {
+      await tx.householdMember.create({
+        data: {
+          householdId: household.id,
+          role: "CHILD",
+          label: `Enfant ${i + 1}`,
+          isChild: true,
+          age: data.childrenAges[i],
+        },
+      });
+    }
 
     if (data.monthlyIncome > 0) {
       await tx.income.create({

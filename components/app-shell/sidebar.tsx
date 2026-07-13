@@ -12,6 +12,7 @@ import {
   ShoppingCart,
   ScanLine,
   MessageCircle,
+  Users,
   Settings,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -26,6 +27,7 @@ const NAV = [
   { href: "/courses", label: "Courses", icon: ShoppingCart },
   { href: "/scanner", label: "Scanner", icon: ScanLine },
   { href: "/coach", label: "Coach IA", icon: MessageCircle },
+  { href: "/famille", label: "Famille", icon: Users },
   { href: "/parametres", label: "Paramètres", icon: Settings },
 ];
 

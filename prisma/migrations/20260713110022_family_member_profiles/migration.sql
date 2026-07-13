@@ -1,0 +1,7 @@
+-- AlterTable
+ALTER TABLE "HouseholdMember" ADD COLUMN     "age" INTEGER,
+ADD COLUMN     "height" DOUBLE PRECISION,
+ADD COLUMN     "isChild" BOOLEAN NOT NULL DEFAULT false,
+ADD COLUMN     "sex" TEXT,
+ADD COLUMN     "weight" DOUBLE PRECISION,
+ALTER COLUMN "userId" DROP NOT NULL;

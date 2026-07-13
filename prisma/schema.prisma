@@ -138,14 +138,21 @@ model Household {
 model HouseholdMember {
   id          String        @id @default(cuid())
   householdId String
-  userId      String
+  userId      String? // null for profile-only members without their own login (e.g. children)
   role        HouseholdRole @default(MEMBER)
   label       String? // "Papa", "Maman", "Enfant 1"
   canEditBudget Boolean @default(true)
   joinedAt    DateTime      @default(now())
 
+  // Lightweight profile fields for members without a full User account
+  isChild     Boolean  @default(false)
+  age         Int?
+  sex         String?
+  height      Float?
+  weight      Float?
+
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([householdId, userId])
 }

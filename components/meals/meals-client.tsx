@@ -64,17 +64,19 @@ export function MealsClient({
   days,
   currency,
   favoriteRecipes,
+  defaultServings,
 }: {
   days: Day[];
   currency: string;
   favoriteRecipes: RecipeInfo[];
+  defaultServings: number;
 }) {
   const [openRecipe, setOpenRecipe] = useState<RecipeInfo | null>(null);
 
   return (
     <div className="space-y-6">
       <div className="flex justify-end">
-        <GenerateMealPlanDialog />
+        <GenerateMealPlanDialog defaultServings={defaultServings} />
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
@@ -264,11 +266,11 @@ function RecipeDetailDialog({
   );
 }
 
-function GenerateMealPlanDialog() {
+function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [numDays, setNumDays] = useState(7);
-  const [servings, setServings] = useState(2);
+  const [servings, setServings] = useState(defaultServings);
   const [budget, setBudget] = useState("");
   const [cuisine, setCuisine] = useState("");
   const [selectedMeals, setSelectedMeals] = useState<string[]>(["LUNCH", "DINNER"]);
