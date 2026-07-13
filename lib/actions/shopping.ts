@@ -1,8 +1,34 @@
 "use server";
 
+import { generateObject } from "ai";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
+import { AI_MODEL } from "@/lib/ai";
+import { SHOPPING_AISLES } from "@/lib/shopping-aisles";
+
+async function categorizeIngredients(names: string[]): Promise<Record<string, string>> {
+  if (names.length === 0) return {};
+  try {
+    const result = await generateObject({
+      model: AI_MODEL,
+      schema: z.object({
+        items: z.array(z.object({ name: z.string(), aisle: z.enum(SHOPPING_AISLES) })),
+      }),
+      prompt: `Classe chacun de ces produits alimentaires dans le rayon de supermarché le plus adapté parmi : ${SHOPPING_AISLES.join(", ")}.
+Produits : ${names.join(", ")}`,
+    });
+    const map: Record<string, string> = {};
+    for (const item of result.object.items) {
+      map[item.name.toLowerCase().trim()] = item.aisle;
+    }
+    return map;
+  } catch (error) {
+    console.error("[categorizeIngredients] failed:", error);
+    return {};
+  }
+}
 
 async function getOrCreateActiveList(householdId: string) {
   const existing = await prisma.shoppingList.findFirst({ where: { householdId, status: "ACTIVE" } });
@@ -62,9 +88,16 @@ export async function generateShoppingListFromMealPlan() {
   const existingItems = await prisma.shoppingListItem.findMany({ where: { listId: list.id }, select: { name: true } });
   const existingNames = new Set(existingItems.map((i) => i.name.toLowerCase().trim()));
 
-  const toCreate = Array.from(needed.entries())
-    .filter(([name]) => !existingNames.has(name))
-    .map(([name, v]) => ({ listId: list.id, name, quantity: v.quantity, unit: v.unit }));
+  const newNames = Array.from(needed.keys()).filter((name) => !existingNames.has(name));
+  const aisleByName = await categorizeIngredients(newNames);
+
+  const toCreate = newNames.map((name) => ({
+    listId: list.id,
+    name,
+    quantity: needed.get(name)!.quantity,
+    unit: needed.get(name)!.unit,
+    category: aisleByName[name] ?? "Autre",
+  }));
 
   if (toCreate.length > 0) {
     await prisma.shoppingListItem.createMany({ data: toCreate });

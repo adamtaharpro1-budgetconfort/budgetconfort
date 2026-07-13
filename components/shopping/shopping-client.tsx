@@ -5,8 +5,10 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Plus, Trash2, Wand2 } from "lucide-react";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
+import { Plus, Trash2, Wand2, ShoppingBasket } from "lucide-react";
 import { addShoppingItem, toggleShoppingItem, deleteShoppingItem, generateShoppingListFromMealPlan } from "@/lib/actions/shopping";
+import { SHOPPING_AISLES } from "@/lib/shopping-aisles";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -16,17 +18,19 @@ interface Item {
   quantity: number | null;
   unit: string | null;
   checked: boolean;
+  category: string | null;
 }
 
 export function ShoppingClient({ items }: { items: Item[] }) {
   const [isPending, startTransition] = useTransition();
   const [generating, setGenerating] = useState(false);
   const [name, setName] = useState("");
+  const [category, setCategory] = useState<string>("Autre");
 
   async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) return;
-    await addShoppingItem({ name: name.trim() });
+    await addShoppingItem({ name: name.trim(), category });
     setName("");
   }
 
@@ -40,11 +44,22 @@ export function ShoppingClient({ items }: { items: Item[] }) {
   const unchecked = items.filter((i) => !i.checked);
   const checked = items.filter((i) => i.checked);
 
+  const groups = SHOPPING_AISLES.map((aisle) => ({
+    aisle,
+    items: unchecked.filter((i) => (i.category ?? "Autre") === aisle),
+  })).filter((g) => g.items.length > 0);
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row">
-        <form onSubmit={handleAdd} className="flex flex-1 gap-2">
+        <form onSubmit={handleAdd} className="flex flex-1 flex-col gap-2 sm:flex-row">
           <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ajouter un article..." />
+          <Select value={category} onValueChange={setCategory}>
+            <SelectTrigger className="sm:w-48"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {SHOPPING_AISLES.map((a) => <SelectItem key={a} value={a}>{a}</SelectItem>)}
+            </SelectContent>
+          </Select>
           <Button type="submit"><Plus className="h-4 w-4" /></Button>
         </form>
         <Button variant="outline" onClick={handleGenerate} disabled={generating}>
@@ -52,32 +67,67 @@ export function ShoppingClient({ items }: { items: Item[] }) {
         </Button>
       </div>
 
-      <Card>
-        <CardContent className="p-4">
-          {unchecked.length === 0 && checked.length === 0 ? (
-            <p className="py-6 text-center text-sm text-muted-foreground">Ta liste est vide.</p>
-          ) : (
-            <ul className="divide-y divide-border">
-              {[...unchecked, ...checked].map((item) => (
-                <li key={item.id} className="flex items-center justify-between py-2.5">
-                  <label className="flex items-center gap-3">
-                    <Checkbox
-                      checked={item.checked}
-                      onCheckedChange={() => startTransition(() => toggleShoppingItem(item.id))}
-                    />
-                    <span className={cn("text-sm", item.checked && "text-muted-foreground line-through")}>
-                      {item.name} {item.quantity ? `(${item.quantity}${item.unit ?? ""})` : ""}
-                    </span>
-                  </label>
-                  <button disabled={isPending} onClick={() => startTransition(() => deleteShoppingItem(item.id))} className="text-muted-foreground hover:text-destructive">
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </li>
-              ))}
-            </ul>
+      {unchecked.length === 0 && checked.length === 0 ? (
+        <Card>
+          <CardContent className="p-6 text-center text-sm text-muted-foreground">Ta liste est vide.</CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-4">
+          {groups.map((group) => (
+            <Card key={group.aisle}>
+              <CardContent className="p-4">
+                <h3 className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
+                  <ShoppingBasket className="h-4 w-4" /> {group.aisle}
+                </h3>
+                <ul className="divide-y divide-border">
+                  {group.items.map((item) => (
+                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => startTransition(() => toggleShoppingItem(item.id))} onDelete={() => startTransition(() => deleteShoppingItem(item.id))} />
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          ))}
+
+          {checked.length > 0 && (
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Déjà pris</h3>
+                <ul className="divide-y divide-border">
+                  {checked.map((item) => (
+                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => startTransition(() => toggleShoppingItem(item.id))} onDelete={() => startTransition(() => deleteShoppingItem(item.id))} />
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
           )}
-        </CardContent>
-      </Card>
+        </div>
+      )}
     </div>
+  );
+}
+
+function ShoppingRow({
+  item,
+  isPending,
+  onToggle,
+  onDelete,
+}: {
+  item: Item;
+  isPending: boolean;
+  onToggle: () => void;
+  onDelete: () => void;
+}) {
+  return (
+    <li className="flex items-center justify-between py-2.5">
+      <label className="flex items-center gap-3">
+        <Checkbox checked={item.checked} onCheckedChange={onToggle} />
+        <span className={cn("text-sm", item.checked && "text-muted-foreground line-through")}>
+          {item.name} {item.quantity ? `(${item.quantity}${item.unit ?? ""})` : ""}
+        </span>
+      </label>
+      <button disabled={isPending} onClick={onDelete} className="text-muted-foreground hover:text-destructive">
+        <Trash2 className="h-4 w-4" />
+      </button>
+    </li>
   );
 }
