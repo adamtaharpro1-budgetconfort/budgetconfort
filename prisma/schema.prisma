@@ -160,9 +160,11 @@ model HouseholdMember {
   sex         String?
   height      Float?
   weight      Float?
+  goal        String? // LOSE, MAINTAIN, GAIN — used to size individual meal portions
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  portions  MealPortion[]
 
   @@unique([householdId, userId])
 }
@@ -313,6 +315,7 @@ model Recipe {
   carbs         Float?
   fats          Float?
   servings      Int        @default(2)
+  servingWeightGrams Int? // poids estimé d'une portion standard, pour ajuster les portions individuelles
   steps         Json // string[]
   cuisine       String?
   isAiGenerated Boolean    @default(false)
@@ -359,8 +362,22 @@ model MealPlanEntry {
   recipeId    String?
   servings    Int      @default(2)
 
-  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-  recipe    Recipe?   @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  household Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  recipe    Recipe?       @relation(fields: [recipeId], references: [id], onDelete: SetNull)
+  portions  MealPortion[]
+}
+
+model MealPortion {
+  id              String  @id @default(cuid())
+  mealPlanEntryId String
+  memberId        String
+  grams           Int?
+  calories        Int?
+
+  mealPlanEntry MealPlanEntry   @relation(fields: [mealPlanEntryId], references: [id], onDelete: Cascade)
+  member        HouseholdMember @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([mealPlanEntryId, memberId])
 }
 
 model NutritionProfile {

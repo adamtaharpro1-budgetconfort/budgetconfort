@@ -48,9 +48,16 @@ interface RecipeInfo {
   isFavorite: boolean;
 }
 
+interface MemberPortion {
+  label: string;
+  grams: number | null;
+  calories: number | null;
+}
+
 interface DayEntry {
   id: string;
   mealType: string;
+  portions: MemberPortion[];
   recipe: RecipeInfo | null;
 }
 
@@ -71,7 +78,7 @@ export function MealsClient({
   favoriteRecipes: RecipeInfo[];
   defaultServings: number;
 }) {
-  const [openRecipe, setOpenRecipe] = useState<RecipeInfo | null>(null);
+  const [openRecipe, setOpenRecipe] = useState<{ recipe: RecipeInfo; portions: MemberPortion[] } | null>(null);
 
   return (
     <div className="space-y-6">
@@ -92,7 +99,7 @@ export function MealsClient({
                   <div key={mt.value} className="rounded-md border border-border p-2">
                     <p className="text-[11px] font-medium uppercase text-muted-foreground">{mt.label}</p>
                     {entry?.recipe ? (
-                      <MealSlot entry={entry} currency={currency} onOpen={() => setOpenRecipe(entry.recipe)} />
+                      <MealSlot entry={entry} currency={currency} onOpen={() => setOpenRecipe({ recipe: entry.recipe!, portions: entry.portions })} />
                     ) : (
                       <p className="mt-1 text-xs text-muted-foreground/70">Vide</p>
                     )}
@@ -111,13 +118,18 @@ export function MealsClient({
           </CardHeader>
           <CardContent className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {favoriteRecipes.map((r) => (
-              <RecipeCard key={r.id} recipe={r} currency={currency} onOpen={() => setOpenRecipe(r)} />
+              <RecipeCard key={r.id} recipe={r} currency={currency} onOpen={() => setOpenRecipe({ recipe: r, portions: [] })} />
             ))}
           </CardContent>
         </Card>
       )}
 
-      <RecipeDetailDialog recipe={openRecipe} currency={currency} onClose={() => setOpenRecipe(null)} />
+      <RecipeDetailDialog
+        recipe={openRecipe?.recipe ?? null}
+        portions={openRecipe?.portions ?? []}
+        currency={currency}
+        onClose={() => setOpenRecipe(null)}
+      />
     </div>
   );
 }
@@ -142,6 +154,16 @@ function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: stri
           )}
           {entry.recipe.priceEstimate != null && <span>{formatCurrency(entry.recipe.priceEstimate, currency)}</span>}
         </div>
+        {entry.portions.length > 0 && (
+          <div className="mt-1.5 flex flex-wrap gap-x-2 gap-y-0.5 text-[10px] text-muted-foreground">
+            {entry.portions.map((p, i) => (
+              <span key={i}>
+                {p.label} {p.grams ? `${p.grams}g` : ""}
+                {p.calories ? ` (${p.calories} kcal)` : ""}
+              </span>
+            ))}
+          </div>
+        )}
       </button>
       <button
         disabled={isPending}
@@ -183,10 +205,12 @@ function RecipeCard({ recipe, currency, onOpen }: { recipe: RecipeInfo; currency
 
 function RecipeDetailDialog({
   recipe,
+  portions,
   currency,
   onClose,
 }: {
   recipe: RecipeInfo | null;
+  portions: MemberPortion[];
   currency: string;
   onClose: () => void;
 }) {
@@ -206,13 +230,30 @@ function RecipeDetailDialog({
                 <Badge variant="outline"><Clock className="mr-1 h-3 w-3" />{recipe.prepTime} min</Badge>
               )}
               {recipe.calories && (
-                <Badge variant="outline"><Flame className="mr-1 h-3 w-3" />{recipe.calories} kcal</Badge>
+                <Badge variant="outline"><Flame className="mr-1 h-3 w-3" />{recipe.calories} kcal / portion standard</Badge>
               )}
               {recipe.servings && (
                 <Badge variant="outline"><Users className="mr-1 h-3 w-3" />{recipe.servings} pers.</Badge>
               )}
               {recipe.priceEstimate != null && <Badge variant="outline">{formatCurrency(recipe.priceEstimate, currency)}</Badge>}
             </div>
+
+            {portions.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-sm font-semibold">Portions par personne</h3>
+                <ul className="space-y-1 rounded-md border border-border p-3 text-sm">
+                  {portions.map((p, i) => (
+                    <li key={i} className="flex justify-between">
+                      <span>{p.label}</span>
+                      <span className="text-muted-foreground">
+                        {p.grams ? `${p.grams} g` : "—"}
+                        {p.calories ? ` · ${p.calories} kcal` : ""}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
 
             {(recipe.proteins != null || recipe.carbs != null || recipe.fats != null) && (
               <div className="grid grid-cols-3 gap-2 rounded-md bg-muted p-3 text-center text-sm">

@@ -33,6 +33,7 @@ export default async function FamillePage() {
           sex: m.sex,
           height: m.height,
           weight: m.weight,
+          goal: m.goal,
           hasAccount: !!m.userId,
           accountEmail: m.user?.email ?? null,
           role: m.role,

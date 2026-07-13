@@ -31,6 +31,7 @@ export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionR
       sex: input.sex,
       height: input.height,
       weight: input.weight,
+      goal: input.isChild ? undefined : input.goal,
     },
   });
 
@@ -53,6 +54,7 @@ export async function updateFamilyMember(id: string, input: FamilyMemberInput): 
       sex: input.sex,
       height: input.height,
       weight: input.weight,
+      goal: input.isChild ? null : input.goal,
     },
   });
 

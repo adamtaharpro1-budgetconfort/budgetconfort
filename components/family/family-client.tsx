@@ -29,10 +29,17 @@ interface Member {
   sex: string | null;
   height: number | null;
   weight: number | null;
+  goal: string | null;
   hasAccount: boolean;
   accountEmail: string | null;
   role: string;
 }
+
+const GOAL_LABELS: Record<string, string> = {
+  LOSE: "Perdre du poids",
+  MAINTAIN: "Maintenir",
+  GAIN: "Prendre du poids",
+};
 
 interface Invite {
   id: string;
@@ -240,6 +247,7 @@ function MemberCard({ member }: { member: Member }) {
         <div className="mt-2 flex flex-wrap gap-1.5">
           <Badge variant="outline">{member.isChild ? "Enfant" : "Adulte"}</Badge>
           {member.age != null && <Badge variant="outline">{member.age} ans</Badge>}
+          {!member.isChild && member.goal && <Badge variant="outline">{GOAL_LABELS[member.goal] ?? member.goal}</Badge>}
           {member.hasAccount && <Badge variant="success">Compte actif</Badge>}
         </div>
         {member.hasAccount && member.accountEmail && (
@@ -266,6 +274,7 @@ function MemberDialog({ existing }: { existing?: Member }) {
       sex: (form.get("sex") as string) || undefined,
       height: form.get("height") ? Number(form.get("height")) : undefined,
       weight: form.get("weight") ? Number(form.get("weight")) : undefined,
+      goal: (form.get("goal") as never) || undefined,
     };
     const result = existing ? await updateFamilyMember(existing.id, input) : await addFamilyMember(input);
     setLoading(false);
@@ -329,6 +338,21 @@ function MemberDialog({ existing }: { existing?: Member }) {
               <Input name="weight" type="number" defaultValue={existing?.weight ?? ""} />
             </div>
           </div>
+          {!isChild && (
+            <div className="space-y-2">
+              <Label>Objectif</Label>
+              <select
+                name="goal"
+                defaultValue={existing?.goal ?? "MAINTAIN"}
+                className="flex h-10 w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-sm"
+              >
+                <option value="LOSE">Perdre du poids</option>
+                <option value="MAINTAIN">Maintenir</option>
+                <option value="GAIN">Prendre du poids</option>
+              </select>
+              <p className="text-xs text-muted-foreground">Utilisé pour adapter ses portions dans les repas générés par l&apos;IA.</p>
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={loading}>{loading ? "..." : existing ? "Enregistrer" : "Ajouter"}</Button>
           </DialogFooter>

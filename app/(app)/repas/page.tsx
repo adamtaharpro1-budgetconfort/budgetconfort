@@ -15,7 +15,10 @@ export default async function RepasPage() {
   const [entries, favorites, members] = await Promise.all([
     prisma.mealPlanEntry.findMany({
       where: { householdId: household.id, date: { gte: start, lt: end } },
-      include: { recipe: { include: { favoritedBy: { where: { userId } }, ingredients: true } } },
+      include: {
+        recipe: { include: { favoritedBy: { where: { userId } }, ingredients: true } },
+        portions: { include: { member: { select: { label: true, user: { select: { firstName: true } } } } } },
+      },
     }),
     prisma.recipe.findMany({
       where: { favoritedBy: { some: { userId } } },
@@ -37,6 +40,11 @@ export default async function RepasPage() {
       entries: dayEntries.map((e) => ({
         id: e.id,
         mealType: e.mealType,
+        portions: e.portions.map((p) => ({
+          label: p.member.label ?? p.member.user?.firstName ?? "Membre",
+          grams: p.grams,
+          calories: p.calories,
+        })),
         recipe: e.recipe
           ? {
               id: e.recipe.id,

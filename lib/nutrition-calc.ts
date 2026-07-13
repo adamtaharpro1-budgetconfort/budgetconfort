@@ -67,3 +67,33 @@ export function estimateChildNutrition(age: number) {
 
   return { calorieTarget, ...calculateMacros(calorieTarget) };
 }
+
+export interface MemberNutritionInput {
+  isChild: boolean;
+  age: number | null;
+  sex: string | null;
+  height: number | null;
+  weight: number | null;
+  goal: string | null; // LOSE, MAINTAIN, GAIN
+  linkedCalorieTarget?: number | null; // from a real NutritionProfile, when the member has an account
+}
+
+/** Best-effort daily calorie target for any household member, account-linked or not. */
+export function resolveMemberCalorieTarget(m: MemberNutritionInput): number | null {
+  if (m.linkedCalorieTarget) return m.linkedCalorieTarget;
+  if (m.isChild) {
+    if (m.age == null) return null;
+    return estimateChildNutrition(m.age).calorieTarget;
+  }
+  if (m.sex && m.age && m.height && m.weight) {
+    return computeFullNutritionProfile({
+      sex: m.sex,
+      age: m.age,
+      height: m.height,
+      weight: m.weight,
+      activityLevel: "MODERATE",
+      goal: (m.goal as NutritionGoal) ?? "MAINTAIN",
+    }).calorieTarget;
+  }
+  return null;
+}

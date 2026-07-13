@@ -78,7 +78,7 @@ export async function generateShoppingListFromMealPlan() {
   const [entries, pantryItems, list] = await Promise.all([
     prisma.mealPlanEntry.findMany({
       where: { householdId, date: { gte: now, lte: in7Days } },
-      include: { recipe: { include: { ingredients: true } } },
+      include: { recipe: { include: { ingredients: true } }, portions: true },
     }),
     prisma.pantryItem.findMany({ where: { householdId }, select: { name: true } }),
     getOrCreateActiveList(householdId),
@@ -88,11 +88,23 @@ export async function generateShoppingListFromMealPlan() {
   const needed = new Map<string, { quantity: number; unit?: string }>();
 
   for (const entry of entries) {
-    for (const ing of entry.recipe?.ingredients ?? []) {
+    if (!entry.recipe) continue;
+
+    // Ajuste les quantités à la somme réelle des portions individuelles plutôt qu'à
+    // l'hypothèse de base de la recette (ex: quelqu'un en perte de poids mange moins).
+    let scale = 1;
+    if (entry.recipe.servingWeightGrams && entry.portions.length > 0) {
+      const totalPortionGrams = entry.portions.reduce((s, p) => s + (p.grams ?? entry.recipe!.servingWeightGrams!), 0);
+      const baseGrams = entry.recipe.servingWeightGrams * entry.recipe.servings;
+      if (baseGrams > 0) scale = Math.min(Math.max(totalPortionGrams / baseGrams, 0.4), 2.5);
+    }
+
+    for (const ing of entry.recipe.ingredients) {
       const key = ing.name.toLowerCase().trim();
       if (pantryNames.has(key)) continue;
       const existing = needed.get(key);
-      needed.set(key, { quantity: (existing?.quantity ?? 0) + (ing.quantity ?? 1), unit: ing.unit ?? existing?.unit });
+      const scaledQuantity = (ing.quantity ?? 1) * scale;
+      needed.set(key, { quantity: (existing?.quantity ?? 0) + scaledQuantity, unit: ing.unit ?? existing?.unit });
     }
   }
 
@@ -105,7 +117,7 @@ export async function generateShoppingListFromMealPlan() {
   const toCreate = newNames.map((name) => ({
     listId: list.id,
     name,
-    quantity: needed.get(name)!.quantity,
+    quantity: Math.round(needed.get(name)!.quantity * 10) / 10,
     unit: needed.get(name)!.unit,
     category: aisleByName[name] ?? "Autre",
   }));
