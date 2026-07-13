@@ -26,6 +26,13 @@ enum HouseholdType {
   FAMILY
 }
 
+enum PlanType {
+  FREE
+  PREMIUM
+  FAMILLE
+  UNLIMITED
+}
+
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
@@ -46,6 +53,8 @@ model User {
   onboardingDone  Boolean   @default(false)
   xp              Int       @default(0)
   dailyScore      Int       @default(0)
+  plan            PlanType  @default(FREE)
+  planExpiresAt   DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

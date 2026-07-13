@@ -6,6 +6,7 @@ declare module "next-auth" {
       id: string;
       onboardingDone: boolean;
       role: string;
+      impersonatorId?: string;
     } & DefaultSession["user"];
   }
 }
@@ -15,5 +16,6 @@ declare module "next-auth/jwt" {
     userId?: string;
     onboardingDone?: boolean;
     role?: string;
+    impersonatorId?: string;
   }
 }

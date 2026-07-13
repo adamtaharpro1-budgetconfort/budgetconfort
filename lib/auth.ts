@@ -82,6 +82,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.id = token.userId as string;
         session.user.onboardingDone = token.onboardingDone as boolean;
         session.user.role = token.role as string;
+        session.user.impersonatorId = token.impersonatorId;
       }
       return session;
     },

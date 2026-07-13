@@ -14,6 +14,7 @@ import {
   MessageCircle,
   Users,
   Settings,
+  ShieldCheck,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -31,8 +32,9 @@ const NAV = [
   { href: "/parametres", label: "Paramètres", icon: Settings },
 ];
 
-export function Sidebar() {
+export function Sidebar({ isAdmin }: { isAdmin?: boolean } = {}) {
   const pathname = usePathname();
+  const items = isAdmin ? [...NAV, { href: "/admin", label: "Administration", icon: ShieldCheck }] : NAV;
 
   return (
     <aside className="hidden w-64 shrink-0 border-r border-border bg-card md:flex md:flex-col">
@@ -42,7 +44,7 @@ export function Sidebar() {
         </Link>
       </div>
       <nav className="flex-1 space-y-1 px-3 py-2">
-        {NAV.map((item) => {
+        {items.map((item) => {
           const active = pathname?.startsWith(item.href);
           return (
             <Link
