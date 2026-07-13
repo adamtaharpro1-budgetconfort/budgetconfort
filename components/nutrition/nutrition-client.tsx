@@ -17,6 +17,7 @@ import {
 import { Plus } from "lucide-react";
 import { logNutritionEntry } from "@/lib/actions/nutrition";
 import { calculateBMI } from "@/lib/nutrition-calc";
+import { BmiGauge } from "@/components/nutrition/bmi-gauge";
 import { toast } from "sonner";
 
 interface Props {
@@ -43,11 +44,31 @@ export function NutritionClient({ profile, todayLog }: Props) {
 
   return (
     <div className="space-y-6">
-      <div className="grid gap-4 sm:grid-cols-4">
-        <StatCard label="IMC" value={bmi ? bmi.toString() : "—"} />
-        <StatCard label="Métabolisme de base" value={profile?.bmr ? `${profile.bmr} kcal` : "—"} />
-        <StatCard label="Dépense totale (TDEE)" value={profile?.tdee ? `${profile.tdee} kcal` : "—"} />
-        <StatCard label="Objectif calorique" value={profile?.calorieTarget ? `${profile.calorieTarget} kcal` : "—"} />
+      <div className="grid gap-4 lg:grid-cols-3">
+        <Card className="lg:col-span-1">
+          <CardHeader>
+            <CardTitle className="text-sm">Indice de masse corporelle</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {bmi ? (
+              <BmiGauge bmi={bmi} />
+            ) : (
+              <p className="text-sm text-muted-foreground">
+                Renseigne ta taille et ton poids dans{" "}
+                <a href="/parametres" className="text-primary underline-offset-4 hover:underline">
+                  tes paramètres
+                </a>{" "}
+                pour voir ton IMC.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+        <div className="grid grid-cols-2 gap-4 lg:col-span-2">
+          <StatCard label="Métabolisme de base" value={profile?.bmr ? `${profile.bmr} kcal` : "—"} />
+          <StatCard label="Dépense totale (TDEE)" value={profile?.tdee ? `${profile.tdee} kcal` : "—"} />
+          <StatCard label="Objectif calorique" value={profile?.calorieTarget ? `${profile.calorieTarget} kcal` : "—"} />
+          <StatCard label="Poids actuel" value={profile?.weight ? `${profile.weight} kg` : "—"} />
+        </div>
       </div>
 
       <Card>

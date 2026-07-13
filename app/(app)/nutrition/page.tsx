@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
 import { NutritionClient } from "@/components/nutrition/nutrition-client";
 import { FamilyNutrition } from "@/components/nutrition/family-nutrition";
-import { computeFullNutritionProfile, estimateChildNutrition } from "@/lib/nutrition-calc";
+import { computeFullNutritionProfile, estimateChildNutrition, calculateBMI } from "@/lib/nutrition-calc";
 
 export default async function NutritionPage() {
   const { userId, household } = await requireHousehold();
@@ -28,6 +28,7 @@ export default async function NutritionPage() {
         label: m.label ?? m.user.firstName ?? "Membre",
         isChild: m.isChild,
         age: p.age,
+        bmi: !m.isChild && p.height && p.weight ? calculateBMI(p.weight, p.height) : null,
         calorieTarget: p.calorieTarget,
         proteinTarget: p.proteinTarget,
         carbTarget: p.carbTarget,
@@ -44,6 +45,7 @@ export default async function NutritionPage() {
         label: m.label ?? "Membre",
         isChild: true,
         age: m.age,
+        bmi: null,
         calorieTarget: nutrition.calorieTarget,
         proteinTarget: nutrition.proteinTarget,
         carbTarget: nutrition.carbTarget,
@@ -67,6 +69,7 @@ export default async function NutritionPage() {
         label: m.label ?? "Membre",
         isChild: false,
         age: m.age,
+        bmi: calculateBMI(m.weight, m.height),
         calorieTarget: nutrition.calorieTarget,
         proteinTarget: nutrition.proteinTarget,
         carbTarget: nutrition.carbTarget,
@@ -80,6 +83,7 @@ export default async function NutritionPage() {
       label: m.label ?? "Membre",
       isChild: m.isChild,
       age: m.age,
+      bmi: null,
       calorieTarget: null,
       proteinTarget: null,
       carbTarget: null,

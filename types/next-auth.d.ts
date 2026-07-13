@@ -7,6 +7,7 @@ declare module "next-auth" {
       onboardingDone: boolean;
       role: string;
       impersonatorId?: string;
+      needsHealthProfile?: boolean;
     } & DefaultSession["user"];
   }
 }
@@ -17,5 +18,6 @@ declare module "next-auth/jwt" {
     onboardingDone?: boolean;
     role?: string;
     impersonatorId?: string;
+    needsHealthProfile?: boolean;
   }
 }

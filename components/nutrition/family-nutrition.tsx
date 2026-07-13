@@ -1,12 +1,14 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { BmiGauge } from "@/components/nutrition/bmi-gauge";
 
 interface FamilyMemberNutrition {
   id: string;
   label: string;
   isChild: boolean;
   age: number | null;
+  bmi: number | null;
   calorieTarget: number | null;
   proteinTarget: number | null;
   carbTarget: number | null;
@@ -36,6 +38,11 @@ export function FamilyNutrition({ members }: { members: FamilyMemberNutrition[] 
                   <div><p className="font-medium text-foreground">{m.carbTarget}g</p>Glucides</div>
                   <div><p className="font-medium text-foreground">{m.fatTarget}g</p>Lipides</div>
                 </div>
+                {m.bmi != null && (
+                  <div className="mt-3 border-t border-border pt-3">
+                    <BmiGauge bmi={m.bmi} />
+                  </div>
+                )}
                 {m.computed && !m.isChild && (
                   <p className="mt-2 text-[11px] text-muted-foreground">Estimation à partir du profil (taille/poids/âge).</p>
                 )}

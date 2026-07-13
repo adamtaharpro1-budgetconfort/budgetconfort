@@ -70,10 +70,11 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
       if (token.userId) {
         const dbUser = await prisma.user.findUnique({
           where: { id: token.userId as string },
-          select: { onboardingDone: true, role: true },
+          select: { onboardingDone: true, role: true, nutritionProfile: { select: { userId: true } } },
         });
         token.onboardingDone = dbUser?.onboardingDone ?? false;
         token.role = dbUser?.role ?? "USER";
+        token.needsHealthProfile = !!dbUser?.onboardingDone && !dbUser?.nutritionProfile;
       }
       return token;
     },
@@ -83,6 +84,7 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         session.user.onboardingDone = token.onboardingDone as boolean;
         session.user.role = token.role as string;
         session.user.impersonatorId = token.impersonatorId;
+        session.user.needsHealthProfile = token.needsHealthProfile as boolean;
       }
       return session;
     },

@@ -23,12 +23,14 @@ export default auth((req) => {
   const isLoggedIn = !!req.auth;
   const isAdmin = req.auth?.user?.email?.toLowerCase() === SUPERADMIN_EMAIL.toLowerCase();
   const onboardingDone = req.auth?.user?.onboardingDone;
+  const needsHealthProfile = req.auth?.user?.needsHealthProfile;
 
   const isOnboardingRoute = nextUrl.pathname.startsWith("/onboarding");
+  const isHealthProfileRoute = nextUrl.pathname.startsWith("/completer-profil");
   const isAdminRoute = nextUrl.pathname.startsWith("/admin");
   const isAppRoute = APP_PREFIXES.some((p) => nextUrl.pathname.startsWith(p));
 
-  if ((isAppRoute || isOnboardingRoute || isAdminRoute) && !isLoggedIn) {
+  if ((isAppRoute || isOnboardingRoute || isHealthProfileRoute || isAdminRoute) && !isLoggedIn) {
     const url = new URL("/connexion", nextUrl);
     url.searchParams.set("callbackUrl", nextUrl.pathname);
     return NextResponse.redirect(url);
@@ -36,6 +38,10 @@ export default auth((req) => {
 
   if (isAppRoute && isLoggedIn && !onboardingDone) {
     return NextResponse.redirect(new URL("/onboarding", nextUrl));
+  }
+
+  if (isAppRoute && isLoggedIn && onboardingDone && needsHealthProfile) {
+    return NextResponse.redirect(new URL("/completer-profil", nextUrl));
   }
 
   if (isAdminRoute && !isAdmin) {
@@ -59,6 +65,7 @@ export const config = {
     "/famille/:path*",
     "/parametres/:path*",
     "/onboarding/:path*",
+    "/completer-profil/:path*",
     "/admin/:path*",
   ],
 };
