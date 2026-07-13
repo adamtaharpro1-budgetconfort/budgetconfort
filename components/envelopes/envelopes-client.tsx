@@ -5,10 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogTrigger, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
-import { Plus, Trash2, PiggyBank, RotateCcw, Minus } from "lucide-react";
+import { Plus, Trash2, PiggyBank, RotateCcw, Minus, TrendingUp } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import { addEnvelope, recordEnvelopeSpend, resetEnvelope, deleteEnvelope } from "@/lib/actions/envelopes";
 import { toast } from "sonner";
@@ -17,7 +16,7 @@ interface Envelope {
   id: string;
   name: string;
   monthlyAmount: number;
-  spentAmount: number;
+  balance: number;
 }
 
 export function EnvelopesClient({
@@ -73,14 +72,14 @@ export function EnvelopesClient({
 
 function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: string }) {
   const [isPending, startTransition] = useTransition();
-  const remaining = envelope.monthlyAmount - envelope.spentAmount;
-  const pct = envelope.monthlyAmount > 0 ? Math.min(Math.round((envelope.spentAmount / envelope.monthlyAmount) * 100), 100) : 0;
-  const isOver = envelope.spentAmount > envelope.monthlyAmount;
+  const isNegative = envelope.balance < 0;
+  const hasCarryOver = envelope.balance > envelope.monthlyAmount;
 
   function handleReset() {
+    if (!window.confirm("Remettre le solde à " + formatCurrency(envelope.monthlyAmount, currency) + " ? Le cumul accumulé sera perdu.")) return;
     startTransition(async () => {
       await resetEnvelope(envelope.id);
-      toast.success("Tirelire réinitialisée pour le mois");
+      toast.success("Solde remis au montant mensuel");
     });
   }
 
@@ -97,7 +96,7 @@ function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: st
           <PiggyBank className="h-4 w-4 text-primary" /> {envelope.name}
         </CardTitle>
         <div className="flex items-center gap-1">
-          <button disabled={isPending} onClick={handleReset} title="Nouveau mois" className="text-muted-foreground hover:text-foreground">
+          <button disabled={isPending} onClick={handleReset} title="Remettre au montant mensuel (perd le cumul)" className="text-muted-foreground hover:text-foreground">
             <RotateCcw className="h-3.5 w-3.5" />
           </button>
           <button disabled={isPending} onClick={handleDelete} className="text-muted-foreground hover:text-destructive">
@@ -106,17 +105,18 @@ function EnvelopeCard({ envelope, currency }: { envelope: Envelope; currency: st
         </div>
       </CardHeader>
       <CardContent>
-        <div className="flex justify-between text-sm mb-1">
-          <span className={isOver ? "font-medium text-destructive" : "font-medium"}>
-            {formatCurrency(envelope.spentAmount, currency)} utilisés
-          </span>
-          <span className="text-muted-foreground">{formatCurrency(envelope.monthlyAmount, currency)}</span>
+        <div className="flex items-center gap-2">
+          <p className={isNegative ? "text-2xl font-semibold text-destructive" : "text-2xl font-semibold"}>
+            {formatCurrency(envelope.balance, currency)}
+          </p>
+          {hasCarryOver && (
+            <Badge variant="success" className="flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" /> cumulée
+            </Badge>
+          )}
         </div>
-        <Progress value={pct} />
-        <p className="mt-2 text-xs text-muted-foreground">
-          {isOver
-            ? `Dépassement de ${formatCurrency(Math.abs(remaining), currency)}`
-            : `${formatCurrency(remaining, currency)} restants`}
+        <p className="mt-1 text-xs text-muted-foreground">
+          disponible · +{formatCurrency(envelope.monthlyAmount, currency)} ajoutés chaque mois
         </p>
         <SpendButton envelopeId={envelope.id} currency={currency} />
       </CardContent>
@@ -152,7 +152,7 @@ function SpendButton({ envelopeId, currency }: { envelopeId: string; currency: s
             <Label>Montant ({currency})</Label>
             <Input name="amount" type="number" step="0.01" required />
             <p className="text-xs text-muted-foreground">
-              Montant positif pour une dépense, négatif pour corriger/retirer.
+              Montant positif pour retirer du solde (dépense), négatif pour en rajouter.
             </p>
           </div>
           <DialogFooter>

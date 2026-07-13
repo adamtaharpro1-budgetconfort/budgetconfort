@@ -284,17 +284,20 @@ model FinancialGoal {
 
 // Enveloppe budgétaire ("tirelire") : budget dédié à un poste de dépense (ex: Restaurant 100€/mois)
 // ou à de l'argent mis de côté, alimenté à partir de l'argent disponible une fois les charges payées.
+// Le solde (balance) n'est jamais remis à 0 en fin de mois : ce qui n'est pas dépensé s'accumule,
+// et monthlyAmount vient s'ajouter au solde à chaque nouveau mois — comme une vraie tirelire qui se
+// remplit un peu plus tant qu'on ne pioche pas dedans.
 model BudgetEnvelope {
   id            String   @id @default(cuid())
   householdId   String
   name          String
   monthlyAmount Float
-  spentAmount   Float    @default(0)
+  balance       Float    @default(0)
   icon          String?
   createdAt     DateTime @default(now())
-  // Dernier mois pour lequel spentAmount a été comptabilisé : sert à détecter le changement de
-  // mois et remettre spentAmount à 0 automatiquement (reconduction mensuelle du budget), sans
-  // jamais toucher monthlyAmount tant que l'utilisateur ne le modifie pas lui-même.
+  // Dernier mois pour lequel monthlyAmount a été ajouté au solde : sert à détecter le changement
+  // de mois pour créditer automatiquement le solde, sans jamais toucher monthlyAmount tant que
+  // l'utilisateur ne le modifie pas lui-même.
   periodStart   DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)

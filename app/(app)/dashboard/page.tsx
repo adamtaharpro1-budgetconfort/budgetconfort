@@ -233,21 +233,15 @@ export default async function DashboardPage() {
             <CardTitle>Mes tirelires</CardTitle>
             <CardDescription>Budget restaurant, loisirs, argent de côté... alimentés par ton argent disponible.</CardDescription>
           </CardHeader>
-          <CardContent className="space-y-4">
-            {envelopes.map((e) => {
-              const pct = e.monthlyAmount > 0 ? Math.min(Math.round((e.spentAmount / e.monthlyAmount) * 100), 100) : 0;
-              return (
-                <div key={e.id}>
-                  <div className="flex justify-between text-sm mb-1">
-                    <span className="font-medium">{e.name}</span>
-                    <span className="text-muted-foreground">
-                      {formatCurrency(e.spentAmount, household.currency)} / {formatCurrency(e.monthlyAmount, household.currency)}
-                    </span>
-                  </div>
-                  <Progress value={pct} />
-                </div>
-              );
-            })}
+          <CardContent className="space-y-3">
+            {envelopes.map((e) => (
+              <div key={e.id} className="flex justify-between text-sm">
+                <span className="font-medium">{e.name}</span>
+                <span className={e.balance < 0 ? "text-destructive" : "text-muted-foreground"}>
+                  {formatCurrency(e.balance, household.currency)} disponible
+                </span>
+              </div>
+            ))}
             <Link href="/tirelires" className="inline-block text-sm text-primary underline-offset-4 hover:underline">
               Voir toutes mes tirelires →
             </Link>
