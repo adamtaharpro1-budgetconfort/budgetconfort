@@ -6,6 +6,7 @@ const APP_PREFIXES = [
   "/dashboard",
   "/budget",
   "/objectifs",
+  "/tirelires",
   "/repas",
   "/nutrition",
   "/stock",

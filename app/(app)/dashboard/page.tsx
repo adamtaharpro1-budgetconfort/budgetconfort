@@ -19,13 +19,14 @@ export default async function DashboardPage() {
   const soonExpiry = new Date();
   soonExpiry.setDate(soonExpiry.getDate() + 4);
 
-  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
+  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, envelopes, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.income.findMany({ where: { householdId: household.id } }),
       prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
       prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId: household.id }, take: 3 }),
+      prisma.budgetEnvelope.findMany({ where: { householdId: household.id }, orderBy: { createdAt: "desc" }, take: 4 }),
       prisma.mealPlanEntry.findMany({
         where: { householdId: household.id, date: { gte: startOfDay, lt: endOfDay } },
         include: { recipe: true },
@@ -205,6 +206,46 @@ export default async function DashboardPage() {
             })}
             <Link href="/objectifs" className="inline-block text-sm text-primary underline-offset-4 hover:underline">
               Voir tous mes objectifs →
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {envelopes.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mes tirelires</CardTitle>
+            <CardDescription>Budget restaurant, loisirs, argent de côté... alimentés par ton argent disponible.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {envelopes.map((e) => {
+              const pct = e.monthlyAmount > 0 ? Math.min(Math.round((e.spentAmount / e.monthlyAmount) * 100), 100) : 0;
+              return (
+                <div key={e.id}>
+                  <div className="flex justify-between text-sm mb-1">
+                    <span className="font-medium">{e.name}</span>
+                    <span className="text-muted-foreground">
+                      {formatCurrency(e.spentAmount, household.currency)} / {formatCurrency(e.monthlyAmount, household.currency)}
+                    </span>
+                  </div>
+                  <Progress value={pct} />
+                </div>
+              );
+            })}
+            <Link href="/tirelires" className="inline-block text-sm text-primary underline-offset-4 hover:underline">
+              Voir toutes mes tirelires →
+            </Link>
+          </CardContent>
+        </Card>
+      ) : (
+        <Card>
+          <CardHeader>
+            <CardTitle>Mes tirelires</CardTitle>
+            <CardDescription>Répartis ton argent disponible ({formatCurrency(budget.availableForVariable, household.currency)}) en petits budgets.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Link href="/tirelires" className="inline-block text-sm text-primary underline-offset-4 hover:underline">
+              Créer ma première tirelire →
             </Link>
           </CardContent>
         </Card>

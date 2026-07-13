@@ -138,6 +138,7 @@ model Household {
   fixedExpenses    FixedExpense[]
   transactions     Transaction[]
   goals            FinancialGoal[]
+  envelopes        BudgetEnvelope[]
   trips            Trip[]
   mealPlanEntries  MealPlanEntry[]
   pantryItems      PantryItem[]
@@ -277,6 +278,20 @@ model FinancialGoal {
   targetDate         DateTime?
   weeklyContribution Float?
   createdAt          DateTime @default(now())
+
+  household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
+}
+
+// Enveloppe budgétaire ("tirelire") : budget dédié à un poste de dépense (ex: Restaurant 100€/mois)
+// ou à de l'argent mis de côté, alimenté à partir de l'argent disponible une fois les charges payées.
+model BudgetEnvelope {
+  id            String   @id @default(cuid())
+  householdId   String
+  name          String
+  monthlyAmount Float
+  spentAmount   Float    @default(0)
+  icon          String?
+  createdAt     DateTime @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }
