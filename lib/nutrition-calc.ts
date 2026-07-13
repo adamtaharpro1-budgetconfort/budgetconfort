@@ -51,3 +51,19 @@ export function computeFullNutritionProfile(input: {
   const macros = calculateMacros(calorieTarget);
   return { bmr, tdee, calorieTarget, ...macros };
 }
+
+/**
+ * The Mifflin-St Jeor formula (used above) is only valid for adults.
+ * For children, use published pediatric daily energy guidelines
+ * (repères PNNS / OMS) by age bracket instead of an adult BMR formula,
+ * which would give a medically misleading number for a toddler.
+ */
+export function estimateChildNutrition(age: number) {
+  let calorieTarget: number;
+  if (age <= 3) calorieTarget = 1200;
+  else if (age <= 8) calorieTarget = 1600;
+  else if (age <= 13) calorieTarget = 2000;
+  else calorieTarget = 2400;
+
+  return { calorieTarget, ...calculateMacros(calorieTarget) };
+}
