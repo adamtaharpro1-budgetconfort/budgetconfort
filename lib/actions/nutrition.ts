@@ -12,17 +12,20 @@ export async function updateNutritionProfile(input: {
   height: number;
   weight: number;
   goal: NutritionGoal;
+  targetWeightDelta?: number | null;
   activityLevel: ActivityLevel;
   allergies: string[];
   preferences: string[];
 }): Promise<ActionResult> {
   const { userId } = await requireSessionHousehold();
-  const computed = computeFullNutritionProfile(input);
+  const { targetWeightDelta, ...calcInput } = input;
+  const computed = computeFullNutritionProfile(calcInput);
+  const normalizedDelta = input.goal === "MAINTAIN" ? null : targetWeightDelta ?? null;
 
   await prisma.nutritionProfile.upsert({
     where: { userId },
-    create: { userId, ...input, ...computed, forbiddenFoods: [] },
-    update: { ...input, ...computed },
+    create: { userId, ...input, targetWeightDelta: normalizedDelta, ...computed, forbiddenFoods: [] },
+    update: { ...input, targetWeightDelta: normalizedDelta, ...computed },
   });
   await prisma.user.update({ where: { id: userId }, data: { height: input.height, weight: input.weight, sex: input.sex } });
 
@@ -33,7 +36,7 @@ export async function updateNutritionProfile(input: {
   return { ok: true };
 }
 
-export async function updateNutritionGoal(goal: NutritionGoal): Promise<ActionResult> {
+export async function updateNutritionGoal(goal: NutritionGoal, targetWeightDelta?: number | null): Promise<ActionResult> {
   const { userId } = await requireSessionHousehold();
 
   const existing = await prisma.nutritionProfile.findUnique({ where: { userId } });
@@ -53,9 +56,11 @@ export async function updateNutritionGoal(goal: NutritionGoal): Promise<ActionRe
     goal,
   });
 
+  const normalizedDelta = goal === "MAINTAIN" ? null : targetWeightDelta ?? null;
+
   await prisma.nutritionProfile.update({
     where: { userId },
-    data: { goal, ...computed },
+    data: { goal, targetWeightDelta: normalizedDelta, ...computed },
   });
 
   revalidatePath("/nutrition");

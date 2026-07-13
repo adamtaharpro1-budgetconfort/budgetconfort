@@ -33,6 +33,9 @@ export default async function NutritionPage() {
         proteinTarget: p.proteinTarget,
         carbTarget: p.carbTarget,
         fatTarget: p.fatTarget,
+        goal: p.goal,
+        targetWeightDelta: p.targetWeightDelta,
+        tdee: p.tdee,
         computed: false,
       };
     }
@@ -50,19 +53,23 @@ export default async function NutritionPage() {
         proteinTarget: nutrition.proteinTarget,
         carbTarget: nutrition.carbTarget,
         fatTarget: nutrition.fatTarget,
+        goal: null,
+        targetWeightDelta: null,
+        tdee: null,
         computed: true,
       };
     }
 
     // Adulte sans compte : calcul à partir des infos de base saisies dans la page Famille.
     if (!m.isChild && m.sex && m.age && m.height && m.weight) {
+      const goal = (m.goal as "LOSE" | "MAINTAIN" | "GAIN") ?? "MAINTAIN";
       const nutrition = computeFullNutritionProfile({
         sex: m.sex,
         age: m.age,
         height: m.height,
         weight: m.weight,
         activityLevel: "MODERATE",
-        goal: "MAINTAIN",
+        goal,
       });
       return {
         id: m.id,
@@ -74,6 +81,9 @@ export default async function NutritionPage() {
         proteinTarget: nutrition.proteinTarget,
         carbTarget: nutrition.carbTarget,
         fatTarget: nutrition.fatTarget,
+        goal,
+        targetWeightDelta: m.targetWeightDelta,
+        tdee: nutrition.tdee,
         computed: true,
       };
     }
@@ -88,6 +98,9 @@ export default async function NutritionPage() {
       proteinTarget: null,
       carbTarget: null,
       fatTarget: null,
+      goal: m.goal,
+      targetWeightDelta: m.targetWeightDelta,
+      tdee: null,
       computed: false,
     };
   });

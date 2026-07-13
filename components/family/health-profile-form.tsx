@@ -7,6 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { completeHealthProfile } from "@/lib/actions/health-profile";
+import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -30,8 +32,20 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
   const [sex, setSex] = useState<"F" | "M">("F");
   const [activityLevel, setActivityLevel] = useState("MODERATE");
   const [goal, setGoal] = useState("MAINTAIN");
+  const [age, setAge] = useState("");
+  const [height, setHeight] = useState("");
+  const [weight, setWeight] = useState("");
+  const [targetWeightDelta, setTargetWeightDelta] = useState("");
   const [allergies, setAllergies] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<string[]>([]);
+
+  const previewTdee =
+    age && height && weight
+      ? calculateTDEE(
+          calculateBMR(sex, Number(weight), Number(height), Number(age)),
+          activityLevel as ActivityLevel
+        )
+      : null;
 
   function toggle(list: string[], setList: (v: string[]) => void, value: string) {
     setList(list.includes(value) ? list.filter((x) => x !== value) : [...list, value]);
@@ -44,11 +58,12 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
     const result = await completeHealthProfile({
       firstName: form.get("firstName") as string,
       sex,
-      age: Number(form.get("age")),
-      height: Number(form.get("height")),
-      weight: Number(form.get("weight")),
+      age: Number(age),
+      height: Number(height),
+      weight: Number(weight),
       activityLevel: activityLevel as never,
       goal: goal as never,
+      targetWeightDelta: goal === "MAINTAIN" ? null : targetWeightDelta ? Number(targetWeightDelta) : null,
       allergies,
       preferences,
     });
@@ -80,15 +95,15 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
             </div>
             <div className="space-y-2">
               <Label>Âge</Label>
-              <Input name="age" type="number" min={10} max={120} required />
+              <Input type="number" min={10} max={120} value={age} onChange={(e) => setAge(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Taille (cm)</Label>
-              <Input name="height" type="number" min={50} max={250} required />
+              <Input type="number" min={50} max={250} value={height} onChange={(e) => setHeight(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Poids (kg)</Label>
-              <Input name="weight" type="number" min={20} max={300} required />
+              <Input type="number" min={20} max={300} value={weight} onChange={(e) => setWeight(e.target.value)} required />
             </div>
           </div>
 
@@ -112,6 +127,27 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
                 </ChoiceButton>
               ))}
             </div>
+            {goal !== "MAINTAIN" && (
+              <div className="space-y-2 pt-2">
+                <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  placeholder="ex : 5"
+                  value={targetWeightDelta}
+                  onChange={(e) => setTargetWeightDelta(e.target.value)}
+                />
+              </div>
+            )}
+            {previewTdee && (
+              <GoalRecap
+                tdee={previewTdee}
+                goal={goal as NutritionGoal}
+                targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+                className="mt-2"
+              />
+            )}
           </div>
 
           <div className="space-y-2">

@@ -7,6 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { completeOnboarding, type OnboardingInput } from "@/lib/actions/onboarding";
+import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
@@ -36,9 +38,18 @@ export default function OnboardingPage() {
     sex: "F",
     activityLevel: "MODERATE",
     weightGoal: "MAINTAIN",
+    targetWeightDelta: null,
     allergies: [],
     preferences: [],
   });
+
+  const previewTdee =
+    data.height && data.weight && data.age && data.sex
+      ? calculateTDEE(
+          calculateBMR(data.sex, data.weight, data.height, data.age),
+          (data.activityLevel ?? "MODERATE") as ActivityLevel
+        )
+      : null;
 
   function update<K extends keyof OnboardingInput>(key: K, value: OnboardingInput[K]) {
     setData((d) => ({ ...d, [key]: value }));
@@ -260,7 +271,14 @@ export default function OnboardingPage() {
                 { v: "MAINTAIN", l: "Maintenir" },
                 { v: "GAIN", l: "Prendre du poids" },
               ].map((g) => (
-                <ChoiceButton key={g.v} selected={data.weightGoal === g.v} onClick={() => update("weightGoal", g.v as OnboardingInput["weightGoal"])}>
+                <ChoiceButton
+                  key={g.v}
+                  selected={data.weightGoal === g.v}
+                  onClick={() => {
+                    update("weightGoal", g.v as OnboardingInput["weightGoal"]);
+                    if (g.v === "MAINTAIN") update("targetWeightDelta", null);
+                  }}
+                >
                   {g.l}
                 </ChoiceButton>
               ))}
@@ -268,6 +286,27 @@ export default function OnboardingPage() {
             <p className="text-xs text-muted-foreground">
               Utilisé pour tes calories et pour adapter tes portions dans les repas générés par l&apos;IA.
             </p>
+            {data.weightGoal !== "MAINTAIN" && (
+              <div className="space-y-2 pt-1">
+                <Label>Nombre de kg à {data.weightGoal === "LOSE" ? "perdre" : "prendre"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  placeholder="ex : 5"
+                  value={data.targetWeightDelta ?? ""}
+                  onChange={(e) => update("targetWeightDelta", e.target.value ? Number(e.target.value) : null)}
+                />
+              </div>
+            )}
+            {previewTdee && (
+              <GoalRecap
+                tdee={previewTdee}
+                goal={(data.weightGoal ?? "MAINTAIN") as NutritionGoal}
+                targetWeightDelta={data.weightGoal === "MAINTAIN" ? null : data.targetWeightDelta}
+                className="mt-2"
+              />
+            )}
           </div>
         </StepCard>
       )}

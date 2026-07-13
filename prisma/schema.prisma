@@ -162,6 +162,7 @@ model HouseholdMember {
   height      Float?
   weight      Float?
   goal        String? // LOSE, MAINTAIN, GAIN — used to size individual meal portions
+  targetWeightDelta Float? // kg à perdre/prendre (non utilisé si goal = MAINTAIN)
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
   user      User?     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -388,6 +389,7 @@ model NutritionProfile {
   height          Float?
   weight          Float?
   goal            String? // LOSE, MAINTAIN, GAIN
+  targetWeightDelta Float? // kg à perdre/prendre (non utilisé si goal = MAINTAIN)
   activityLevel   String? // SEDENTARY, LIGHT, MODERATE, ACTIVE, VERY_ACTIVE
   allergies       String[]
   preferences     String[]

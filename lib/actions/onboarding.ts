@@ -21,6 +21,7 @@ const onboardingSchema = z.object({
   sex: z.enum(["M", "F"]),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
   weightGoal: z.enum(["LOSE", "MAINTAIN", "GAIN"]).default("MAINTAIN"),
+  targetWeightDelta: z.number().min(0).max(200).nullable().default(null),
   allergies: z.array(z.string()).default([]),
   preferences: z.array(z.string()).default([]),
 });
@@ -50,6 +51,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
     activityLevel: data.activityLevel as ActivityLevel,
     goal: data.weightGoal as NutritionGoal,
   });
+  const normalizedDelta = data.weightGoal === "MAINTAIN" ? null : data.targetWeightDelta;
 
   await prisma.$transaction(async (tx) => {
     const household = await tx.household.create({
@@ -149,6 +151,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
         height: data.height,
         weight: data.weight,
         goal: data.weightGoal,
+        targetWeightDelta: normalizedDelta,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,
@@ -166,6 +169,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
         height: data.height,
         weight: data.weight,
         goal: data.weightGoal,
+        targetWeightDelta: normalizedDelta,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,

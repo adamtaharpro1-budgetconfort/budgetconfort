@@ -15,6 +15,7 @@ const healthProfileSchema = z.object({
   weight: z.number().min(20).max(300),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
   goal: z.enum(["LOSE", "MAINTAIN", "GAIN"]),
+  targetWeightDelta: z.number().min(0).max(200).nullable().default(null),
   allergies: z.array(z.string()).default([]),
   preferences: z.array(z.string()).default([]),
 });
@@ -38,6 +39,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
     activityLevel: data.activityLevel as ActivityLevel,
     goal: data.goal as NutritionGoal,
   });
+  const normalizedDelta = data.goal === "MAINTAIN" ? null : data.targetWeightDelta;
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -59,6 +61,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
         height: data.height,
         weight: data.weight,
         goal: data.goal,
+        targetWeightDelta: normalizedDelta,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,
@@ -76,6 +79,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
         height: data.height,
         weight: data.weight,
         goal: data.goal,
+        targetWeightDelta: normalizedDelta,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,

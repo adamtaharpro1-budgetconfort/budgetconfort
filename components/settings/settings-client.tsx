@@ -13,6 +13,8 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { updateProfile } from "@/lib/actions/profile";
 import { changePassword } from "@/lib/actions/auth";
 import { updateNutritionProfile } from "@/lib/actions/nutrition";
+import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 
 interface Props {
@@ -23,6 +25,7 @@ interface Props {
     height: number | null;
     weight: number | null;
     goal: string | null;
+    targetWeightDelta: number | null;
     activityLevel: string | null;
     allergies: string[];
     preferences: string[];
@@ -137,6 +140,20 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
   const [sex, setSex] = useState(profile?.sex ?? "F");
   const [goal, setGoal] = useState(profile?.goal ?? "MAINTAIN");
   const [activityLevel, setActivityLevel] = useState(profile?.activityLevel ?? "MODERATE");
+  const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
+  const [height, setHeight] = useState(profile?.height ? String(profile.height) : "");
+  const [weight, setWeight] = useState(profile?.weight ? String(profile.weight) : "");
+  const [targetWeightDelta, setTargetWeightDelta] = useState(
+    profile?.targetWeightDelta != null ? String(profile.targetWeightDelta) : ""
+  );
+
+  const previewTdee =
+    age && height && weight
+      ? calculateTDEE(
+          calculateBMR(sex, Number(weight), Number(height), Number(age)),
+          activityLevel as ActivityLevel
+        )
+      : null;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -144,10 +161,11 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
     const form = new FormData(e.currentTarget);
     const result = await updateNutritionProfile({
       sex,
-      age: Number(form.get("age")),
-      height: Number(form.get("height")),
-      weight: Number(form.get("weight")),
+      age: Number(age),
+      height: Number(height),
+      weight: Number(weight),
       goal: goal as never,
+      targetWeightDelta: goal === "MAINTAIN" ? null : targetWeightDelta ? Number(targetWeightDelta) : null,
       activityLevel: activityLevel as never,
       allergies: (form.get("allergies") as string).split(",").map((s) => s.trim()).filter(Boolean),
       preferences: (form.get("preferences") as string).split(",").map((s) => s.trim()).filter(Boolean),
@@ -178,15 +196,15 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
             </div>
             <div className="space-y-2">
               <Label>Âge</Label>
-              <Input name="age" type="number" defaultValue={profile?.age ?? ""} required />
+              <Input type="number" value={age} onChange={(e) => setAge(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Taille (cm)</Label>
-              <Input name="height" type="number" defaultValue={profile?.height ?? ""} required />
+              <Input type="number" value={height} onChange={(e) => setHeight(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Poids (kg)</Label>
-              <Input name="weight" type="number" defaultValue={profile?.weight ?? ""} required />
+              <Input type="number" value={weight} onChange={(e) => setWeight(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Objectif</Label>
@@ -212,7 +230,29 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
                 </SelectContent>
               </Select>
             </div>
+            {goal !== "MAINTAIN" && (
+              <div className="space-y-2">
+                <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  step={0.5}
+                  placeholder="ex : 5"
+                  value={targetWeightDelta}
+                  onChange={(e) => setTargetWeightDelta(e.target.value)}
+                />
+              </div>
+            )}
           </div>
+
+          {previewTdee && (
+            <GoalRecap
+              tdee={previewTdee}
+              goal={goal as NutritionGoal}
+              targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+            />
+          )}
+
           <div className="space-y-2">
             <Label>Allergies (séparées par virgules)</Label>
             <Input name="allergies" defaultValue={profile?.allergies?.join(", ") ?? ""} />

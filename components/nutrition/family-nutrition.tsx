@@ -2,6 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
 import { BmiGauge } from "@/components/nutrition/bmi-gauge";
+import { GoalRecap } from "@/components/nutrition/goal-recap";
+import type { NutritionGoal } from "@/lib/nutrition-calc";
 
 interface FamilyMemberNutrition {
   id: string;
@@ -13,6 +15,9 @@ interface FamilyMemberNutrition {
   proteinTarget: number | null;
   carbTarget: number | null;
   fatTarget: number | null;
+  goal: string | null;
+  targetWeightDelta: number | null;
+  tdee: number | null;
   computed: boolean;
 }
 
@@ -41,6 +46,11 @@ export function FamilyNutrition({ members }: { members: FamilyMemberNutrition[] 
                 {m.bmi != null && (
                   <div className="mt-3 border-t border-border pt-3">
                     <BmiGauge bmi={m.bmi} />
+                  </div>
+                )}
+                {m.tdee != null && m.goal && (
+                  <div className="mt-3">
+                    <GoalRecap tdee={m.tdee} goal={m.goal as NutritionGoal} targetWeightDelta={m.targetWeightDelta} />
                   </div>
                 )}
                 {m.computed && !m.isChild && (

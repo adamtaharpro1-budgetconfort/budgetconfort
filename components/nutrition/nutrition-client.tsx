@@ -16,8 +16,9 @@ import {
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
 import { logNutritionEntry, updateNutritionGoal } from "@/lib/actions/nutrition";
-import { calculateBMI } from "@/lib/nutrition-calc";
+import { calculateBMI, type NutritionGoal } from "@/lib/nutrition-calc";
 import { BmiGauge } from "@/components/nutrition/bmi-gauge";
+import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 
@@ -26,6 +27,7 @@ interface Props {
     height: number | null;
     weight: number | null;
     goal: string | null;
+    targetWeightDelta: number | null;
     bmr: number | null;
     tdee: number | null;
     calorieTarget: number | null;
@@ -52,7 +54,12 @@ export function NutritionClient({ profile, todayLog }: Props) {
 
   return (
     <div className="space-y-6">
-      <GoalSelector currentGoal={profile?.goal ?? null} hasProfile={!!profile?.height && !!profile?.weight} />
+      <GoalSelector
+        currentGoal={profile?.goal ?? null}
+        currentTargetWeightDelta={profile?.targetWeightDelta ?? null}
+        hasProfile={!!profile?.height && !!profile?.weight}
+        tdee={profile?.tdee ?? null}
+      />
 
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
@@ -122,18 +129,31 @@ export function NutritionClient({ profile, todayLog }: Props) {
   );
 }
 
-function GoalSelector({ currentGoal, hasProfile }: { currentGoal: string | null; hasProfile: boolean }) {
+function GoalSelector({
+  currentGoal,
+  currentTargetWeightDelta,
+  hasProfile,
+  tdee,
+}: {
+  currentGoal: string | null;
+  currentTargetWeightDelta: number | null;
+  hasProfile: boolean;
+  tdee: number | null;
+}) {
   const [goal, setGoal] = useState(currentGoal ?? "MAINTAIN");
+  const [targetWeightDelta, setTargetWeightDelta] = useState(
+    currentTargetWeightDelta != null ? String(currentTargetWeightDelta) : ""
+  );
   const [loading, setLoading] = useState(false);
 
-  async function handleChange(value: string) {
-    setGoal(value);
+  async function save(nextGoal: string, nextDeltaRaw: string) {
     if (!hasProfile) {
       toast.error("Renseigne d'abord ton âge, ta taille et ton poids dans Paramètres → Nutrition.");
       return;
     }
     setLoading(true);
-    const result = await updateNutritionGoal(value as never);
+    const delta = nextDeltaRaw ? Number(nextDeltaRaw) : null;
+    const result = await updateNutritionGoal(nextGoal as never, delta);
     setLoading(false);
     if (!result.ok) {
       toast.error(result.error);
@@ -142,19 +162,57 @@ function GoalSelector({ currentGoal, hasProfile }: { currentGoal: string | null;
     toast.success("Objectif mis à jour ✨");
   }
 
+  function handleGoalChange(value: string) {
+    setGoal(value);
+    save(value, value === "MAINTAIN" ? "" : targetWeightDelta);
+  }
+
+  function handleDeltaBlur() {
+    save(goal, targetWeightDelta);
+  }
+
   return (
     <Card>
-      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium">Mon objectif</p>
-          <p className="text-xs text-muted-foreground">Utilisé pour tes calories et tes portions dans les repas générés par l&apos;IA.</p>
+      <CardContent className="space-y-4 p-4">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <p className="text-sm font-medium">Mon objectif</p>
+            <p className="text-xs text-muted-foreground">Utilisé pour tes calories et tes portions dans les repas générés par l&apos;IA.</p>
+          </div>
+          <Select value={goal} onValueChange={handleGoalChange} disabled={loading}>
+            <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              {GOAL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
         </div>
-        <Select value={goal} onValueChange={handleChange} disabled={loading}>
-          <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
-          <SelectContent>
-            {GOAL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
+
+        {goal !== "MAINTAIN" && (
+          <div className="flex flex-col gap-2 sm:max-w-xs">
+            <Label htmlFor="targetWeightDelta" className="text-xs">
+              Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}
+            </Label>
+            <Input
+              id="targetWeightDelta"
+              type="number"
+              min={0}
+              step={0.5}
+              placeholder="ex : 5"
+              value={targetWeightDelta}
+              onChange={(e) => setTargetWeightDelta(e.target.value)}
+              onBlur={handleDeltaBlur}
+              disabled={loading}
+            />
+          </div>
+        )}
+
+        {tdee && (
+          <GoalRecap
+            tdee={tdee}
+            goal={goal as NutritionGoal}
+            targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+          />
+        )}
       </CardContent>
     </Card>
   );

@@ -68,6 +68,33 @@ export function estimateChildNutrition(age: number) {
   return { calorieTarget, ...calculateMacros(calorieTarget) };
 }
 
+const KCAL_PER_KG = 7700; // approximation standard : ~7700 kcal ≈ 1 kg de masse corporelle
+
+export interface GoalRecap {
+  dailyCalorieTarget: number;
+  weeks: number | null; // null si MAINTAIN ou pas de kg cible renseigné
+  goal: NutritionGoal;
+}
+
+/**
+ * Calcule le plafond/plancher calorique quotidien à respecter et le temps
+ * estimé (en semaines) pour atteindre un objectif de poids donné.
+ */
+export function estimateGoalRecap(
+  tdee: number,
+  goal: NutritionGoal,
+  targetWeightDelta?: number | null
+): GoalRecap {
+  const dailyCalorieTarget = calculateCalorieTarget(tdee, goal);
+  if (goal === "MAINTAIN" || !targetWeightDelta || targetWeightDelta <= 0) {
+    return { dailyCalorieTarget, weeks: null, goal };
+  }
+  const dailyDelta = Math.abs(dailyCalorieTarget - tdee);
+  const weeklyDelta = dailyDelta * 7;
+  const weeks = weeklyDelta > 0 ? Math.round((targetWeightDelta * KCAL_PER_KG) / weeklyDelta) : null;
+  return { dailyCalorieTarget, weeks, goal };
+}
+
 export interface MemberNutritionInput {
   isChild: boolean;
   age: number | null;

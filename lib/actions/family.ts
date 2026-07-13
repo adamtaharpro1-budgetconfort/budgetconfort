@@ -15,6 +15,7 @@ export interface FamilyMemberInput {
   weight?: number;
   activityLevel?: ActivityLevel;
   goal?: NutritionGoal;
+  targetWeightDelta?: number | null;
 }
 
 export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionResult> {
@@ -32,11 +33,13 @@ export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionR
       height: input.height,
       weight: input.weight,
       goal: input.isChild ? undefined : input.goal,
+      targetWeightDelta: input.isChild || input.goal === "MAINTAIN" ? null : input.targetWeightDelta,
     },
   });
 
   revalidatePath("/famille");
   revalidatePath("/repas");
+  revalidatePath("/nutrition");
   return { ok: true };
 }
 
@@ -55,11 +58,13 @@ export async function updateFamilyMember(id: string, input: FamilyMemberInput): 
       height: input.height,
       weight: input.weight,
       goal: input.isChild ? null : input.goal,
+      targetWeightDelta: input.isChild || input.goal === "MAINTAIN" ? null : input.targetWeightDelta,
     },
   });
 
   revalidatePath("/famille");
   revalidatePath("/repas");
+  revalidatePath("/nutrition");
   return { ok: true };
 }
 
