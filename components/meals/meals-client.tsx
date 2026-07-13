@@ -18,6 +18,8 @@ import {
 import { Sparkles, Trash2, Heart, Clock, Flame } from "lucide-react";
 import { generateAiMealPlan, removeMealPlanEntry, toggleFavoriteRecipe } from "@/lib/actions/meals";
 import { toast } from "sonner";
+import { Progress } from "@/components/ui/progress";
+import { useFakeProgress } from "@/lib/hooks/use-fake-progress";
 import { cn, formatCurrency } from "@/lib/utils";
 
 const MEAL_TYPES = [
@@ -170,6 +172,10 @@ function GenerateMealPlanDialog() {
     setSelectedMeals((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   }
 
+  const recipeCount = numDays * selectedMeals.length;
+  const estimatedSeconds = Math.max(3 + recipeCount * 2.2, 5);
+  const { progress, setProgress } = useFakeProgress(loading, estimatedSeconds);
+
   async function handleGenerate() {
     if (selectedMeals.length === 0) {
       toast.error("Sélectionne au moins un type de repas");
@@ -183,13 +189,19 @@ function GenerateMealPlanDialog() {
       budgetTotal: budget ? Number(budget) : undefined,
       cuisine: cuisine || undefined,
     });
-    setLoading(false);
+
     if (!result.ok) {
+      setLoading(false);
       toast.error(result.error);
       return;
     }
-    setOpen(false);
-    toast.success(result.adviceMessage || "Menu généré !");
+
+    setProgress(100);
+    setTimeout(() => {
+      setLoading(false);
+      setOpen(false);
+      toast.success(result.adviceMessage || "Menu généré !");
+    }, 400);
   }
 
   return (
@@ -203,15 +215,15 @@ function GenerateMealPlanDialog() {
         <DialogHeader>
           <DialogTitle>Génération de menu par IA</DialogTitle>
         </DialogHeader>
-        <div className="space-y-4">
+        <div className={cn("space-y-4", loading && "pointer-events-none opacity-50")}>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Nombre de jours</Label>
-              <Input type="number" min={1} max={14} value={numDays} onChange={(e) => setNumDays(Number(e.target.value))} />
+              <Input type="number" min={1} max={14} value={numDays} onChange={(e) => setNumDays(Number(e.target.value))} disabled={loading} />
             </div>
             <div className="space-y-2">
               <Label>Nombre de personnes</Label>
-              <Input type="number" min={1} max={12} value={servings} onChange={(e) => setServings(Number(e.target.value))} />
+              <Input type="number" min={1} max={12} value={servings} onChange={(e) => setServings(Number(e.target.value))} disabled={loading} />
             </div>
           </div>
           <div className="space-y-2">
@@ -219,7 +231,7 @@ function GenerateMealPlanDialog() {
             <div className="flex flex-wrap gap-3">
               {MEAL_TYPES.map((mt) => (
                 <label key={mt.value} className="flex items-center gap-2 text-sm">
-                  <Checkbox checked={selectedMeals.includes(mt.value)} onCheckedChange={() => toggleMeal(mt.value)} />
+                  <Checkbox checked={selectedMeals.includes(mt.value)} onCheckedChange={() => toggleMeal(mt.value)} disabled={loading} />
                   {mt.label}
                 </label>
               ))}
@@ -228,17 +240,36 @@ function GenerateMealPlanDialog() {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Budget total (optionnel)</Label>
-              <Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="Ex: 60" />
+              <Input type="number" value={budget} onChange={(e) => setBudget(e.target.value)} placeholder="Ex: 60" disabled={loading} />
             </div>
             <div className="space-y-2">
               <Label>Cuisine (optionnel)</Label>
-              <Input value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Ex: italienne" />
+              <Input value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Ex: italienne" disabled={loading} />
             </div>
           </div>
         </div>
+
+        {loading && (
+          <div className="space-y-2">
+            <Progress value={progress} />
+            <p className="text-center text-xs text-muted-foreground">
+              {progress < 100
+                ? `Génération de ${recipeCount} recette${recipeCount > 1 ? "s" : ""} en cours... (${Math.round(progress)}%)`
+                : "Menu prêt !"}
+            </p>
+          </div>
+        )}
+
         <DialogFooter>
           <Button onClick={handleGenerate} disabled={loading}>
-            {loading ? "Génération en cours..." : "Générer le menu"}
+            {loading ? (
+              <span className="flex items-center gap-2">
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+                Génération en cours...
+              </span>
+            ) : (
+              "Générer le menu"
+            )}
           </Button>
         </DialogFooter>
       </DialogContent>

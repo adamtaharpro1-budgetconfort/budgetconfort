@@ -8,6 +8,8 @@ import { Camera, Loader2, Refrigerator, Receipt as ReceiptIcon, CheckCircle2 } f
 import { scanFridge, scanReceipt } from "@/lib/actions/scanner";
 import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
+import { Progress } from "@/components/ui/progress";
+import { useFakeProgress } from "@/lib/hooks/use-fake-progress";
 
 export default function ScannerPage() {
   return (
@@ -35,6 +37,7 @@ function FridgeScanner() {
   const [loading, setLoading] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
   const [recipeIdeas, setRecipeIdeas] = useState<string[]>([]);
+  const { progress, setProgress } = useFakeProgress(loading, 12);
 
   async function handleFile(file: File) {
     setPreview(URL.createObjectURL(file));
@@ -43,13 +46,15 @@ function FridgeScanner() {
     const formData = new FormData();
     formData.set("image", file);
     const result = await scanFridge(formData);
-    setLoading(false);
     if (!result.ok) {
+      setLoading(false);
       toast.error(result.error);
       return;
     }
+    setProgress(100);
     setResultText(`${result.itemCount} produit(s) détecté(s) et ajouté(s) à ton stock.`);
     setRecipeIdeas(result.recipeIdeas ?? []);
+    setTimeout(() => setLoading(false), 400);
   }
 
   return (
@@ -72,6 +77,14 @@ function FridgeScanner() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {loading ? "Analyse en cours..." : "Prendre / choisir une photo"}
         </Button>
+        {loading && (
+          <div className="space-y-1">
+            <Progress value={progress} />
+            <p className="text-center text-xs text-muted-foreground">
+              {progress < 100 ? `Analyse de la photo... (${Math.round(progress)}%)` : "Terminé !"}
+            </p>
+          </div>
+        )}
         {resultText && (
           <div className="rounded-md bg-accent p-3 text-sm text-accent-foreground">
             <p className="flex items-center gap-2 font-medium">
@@ -96,6 +109,7 @@ function ReceiptScanner() {
   const [preview, setPreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [resultText, setResultText] = useState<string | null>(null);
+  const { progress, setProgress } = useFakeProgress(loading, 12);
 
   async function handleFile(file: File) {
     setPreview(URL.createObjectURL(file));
@@ -104,14 +118,16 @@ function ReceiptScanner() {
     const formData = new FormData();
     formData.set("image", file);
     const result = await scanReceipt(formData);
-    setLoading(false);
     if (!result.ok) {
+      setLoading(false);
       toast.error(result.error);
       return;
     }
+    setProgress(100);
     setResultText(
       `Ticket analysé : ${formatCurrency(result.total ?? 0)} ajoutés au budget, ${result.itemCount} produit(s) ajoutés au stock.`
     );
+    setTimeout(() => setLoading(false), 400);
   }
 
   return (
@@ -134,6 +150,14 @@ function ReceiptScanner() {
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Camera className="h-4 w-4" />}
           {loading ? "Analyse en cours..." : "Prendre / choisir une photo"}
         </Button>
+        {loading && (
+          <div className="space-y-1">
+            <Progress value={progress} />
+            <p className="text-center text-xs text-muted-foreground">
+              {progress < 100 ? `Analyse du ticket... (${Math.round(progress)}%)` : "Terminé !"}
+            </p>
+          </div>
+        )}
         {resultText && (
           <div className="rounded-md bg-accent p-3 text-sm text-accent-foreground">
             <p className="flex items-center gap-2 font-medium">
