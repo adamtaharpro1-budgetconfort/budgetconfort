@@ -174,25 +174,11 @@ model Income {
   user      User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
 }
 
-enum FixedExpenseCategory {
-  LOYER
-  INTERNET
-  TELEPHONE
-  NETFLIX
-  SPOTIFY
-  CREDIT
-  ASSURANCE
-  ELECTRICITE
-  GAZ
-  ABONNEMENT
-  AUTRE
-}
-
 model FixedExpense {
-  id          String               @id @default(cuid())
+  id          String   @id @default(cuid())
   householdId String
   label       String
-  category    FixedExpenseCategory
+  category    String
   amount      Float
   dueDay      Int?
 

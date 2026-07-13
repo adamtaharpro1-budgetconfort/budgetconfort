@@ -17,6 +17,8 @@ export default async function BudgetPage() {
     }),
   ]);
 
+  const customFixedCategories = Array.from(new Set(fixedExpenses.map((f) => f.category)));
+
   const totalIncome = incomes.reduce((s, i) => s + i.amount, 0);
   const totalFixed = fixedExpenses.reduce((s, f) => s + f.amount, 0);
   const variableSpent = transactions.reduce((s, t) => s + t.amount, 0);
@@ -36,6 +38,7 @@ export default async function BudgetPage() {
           meta: f.dueDay ? `${f.category} · à payer le ${f.dueDay}` : f.category,
         }))}
         transactions={transactions.map((t) => ({ id: t.id, label: t.label, amount: t.amount, meta: t.category }))}
+        customFixedCategories={customFixedCategories}
       />
     </div>
   );

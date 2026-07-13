@@ -34,8 +34,9 @@ import {
 import { toast } from "sonner";
 
 const INCOME_TYPES = ["SALAIRE", "PRIME", "FREELANCE", "CAF", "AUTRE"];
-const FIXED_CATEGORIES = ["LOYER", "INTERNET", "TELEPHONE", "NETFLIX", "SPOTIFY", "CREDIT", "ASSURANCE", "ELECTRICITE", "GAZ", "ABONNEMENT", "AUTRE"];
+const FIXED_CATEGORIES = ["LOYER", "INTERNET", "TELEPHONE", "NETFLIX", "SPOTIFY", "CREDIT", "ASSURANCE", "ELECTRICITE", "GAZ", "ABONNEMENT"];
 const VARIABLE_CATEGORIES = ["RESTAURANT", "SHOPPING", "ESSENCE", "VOYAGES", "LOISIRS", "SANTE", "ANIMAUX", "ENFANTS", "COURSES", "AUTRE"];
+const CUSTOM_CATEGORY_VALUE = "__CUSTOM__";
 
 interface Row {
   id: string;
@@ -50,12 +51,14 @@ export function BudgetClient({
   incomes,
   fixedExpenses,
   transactions,
+  customFixedCategories,
 }: {
   currency: string;
   budget: { budgetRemaining: number; dailyBudget: number; projectedEndOfMonth: number; percentUsed: number; availableForVariable: number };
   incomes: Row[];
   fixedExpenses: Row[];
   transactions: Row[];
+  customFixedCategories: string[];
 }) {
   return (
     <div className="space-y-6">
@@ -104,7 +107,7 @@ export function BudgetClient({
         rows={fixedExpenses}
         currency={currency}
         onDelete={(id) => deleteFixedExpense(id)}
-        addDialog={<AddFixedExpenseDialog />}
+        addDialog={<AddFixedExpenseDialog customCategories={customFixedCategories} />}
       />
       <Section
         title="Dépenses variables (ce mois-ci)"
@@ -224,12 +227,21 @@ function AddIncomeDialog() {
   );
 }
 
-function AddFixedExpenseDialog() {
+function AddFixedExpenseDialog({ customCategories }: { customCategories: string[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState("LOYER");
+  const [customCategory, setCustomCategory] = useState("");
+
+  const allCategories = [...FIXED_CATEGORIES, ...customCategories.filter((c) => !FIXED_CATEGORIES.includes(c))];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const finalCategory = category === CUSTOM_CATEGORY_VALUE ? customCategory.trim() : category;
+    if (!finalCategory) {
+      toast.error("Indique un nom de catégorie");
+      return;
+    }
     setLoading(true);
     const form = new FormData(e.currentTarget);
     try {
@@ -237,10 +249,12 @@ function AddFixedExpenseDialog() {
       await addFixedExpense({
         label: form.get("label") as string,
         amount: Number(form.get("amount")),
-        category: form.get("category") as never,
+        category: finalCategory,
         dueDay: dueDayValue ? Number(dueDayValue) : undefined,
       });
       setOpen(false);
+      setCategory("LOYER");
+      setCustomCategory("");
       toast.success("Charge ajoutée");
     } catch {
       toast.error("Erreur");
@@ -271,13 +285,26 @@ function AddFixedExpenseDialog() {
           </div>
           <div className="space-y-2">
             <Label>Catégorie</Label>
-            <Select name="category" defaultValue="LOYER">
+            <Select value={category} onValueChange={setCategory}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {FIXED_CATEGORIES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {allCategories.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                <SelectItem value={CUSTOM_CATEGORY_VALUE}>Autre (nouvelle catégorie)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {category === CUSTOM_CATEGORY_VALUE && (
+            <div className="space-y-2">
+              <Label>Nom de la nouvelle catégorie</Label>
+              <Input
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Ex: Eau"
+                autoFocus
+                required
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={loading}>{loading ? "..." : "Ajouter"}</Button>
           </DialogFooter>
