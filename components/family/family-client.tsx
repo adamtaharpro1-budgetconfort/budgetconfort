@@ -15,7 +15,8 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2, User as UserIcon, Baby, Pencil, Link2, Copy, X } from "lucide-react";
+import Link from "next/link";
+import { Plus, Trash2, User as UserIcon, Baby, Pencil, Link2, Copy, X, Settings } from "lucide-react";
 import { addFamilyMember, updateFamilyMember, deleteFamilyMember, type FamilyMemberInput } from "@/lib/actions/family";
 import { createFamilyInvite, cancelInvite } from "@/lib/actions/invite";
 import { toast } from "sonner";
@@ -23,6 +24,7 @@ import { formatDate } from "@/lib/utils";
 
 interface Member {
   id: string;
+  userId: string | null;
   label: string;
   isChild: boolean;
   age: number | null;
@@ -49,7 +51,15 @@ interface Invite {
   createdAt: string;
 }
 
-export function FamilyClient({ members, invites }: { members: Member[]; invites: Invite[] }) {
+export function FamilyClient({
+  members,
+  invites,
+  currentUserId,
+}: {
+  members: Member[];
+  invites: Invite[];
+  currentUserId: string;
+}) {
   const adults = members.filter((m) => !m.isChild);
   const children = members.filter((m) => m.isChild);
 
@@ -90,7 +100,7 @@ export function FamilyClient({ members, invites }: { members: Member[]; invites:
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         {members.map((m) => (
-          <MemberCard key={m.id} member={m} />
+          <MemberCard key={m.id} member={m} isSelf={m.userId === currentUserId} />
         ))}
       </div>
     </div>
@@ -215,7 +225,7 @@ function InviteDialog() {
   );
 }
 
-function MemberCard({ member }: { member: Member }) {
+function MemberCard({ member, isSelf }: { member: Member; isSelf: boolean }) {
   const [isPending, startTransition] = useTransition();
 
   async function handleDelete() {
@@ -229,9 +239,14 @@ function MemberCard({ member }: { member: Member }) {
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-2">
             {member.isChild ? <Baby className="h-4 w-4 text-primary" /> : <UserIcon className="h-4 w-4 text-primary" />}
-            <p className="text-sm font-medium">{member.label}</p>
+            <p className="text-sm font-medium">{member.label} {isSelf && <span className="text-xs text-muted-foreground">(toi)</span>}</p>
           </div>
           <div className="flex items-center gap-1">
+            {isSelf && (
+              <Link href="/parametres" title="Modifier mon objectif dans Paramètres → Nutrition" className="text-muted-foreground hover:text-foreground">
+                <Settings className="h-4 w-4" />
+              </Link>
+            )}
             {!member.hasAccount && <MemberDialog existing={member} />}
             {!member.hasAccount && (
               <button
@@ -248,8 +263,18 @@ function MemberCard({ member }: { member: Member }) {
           <Badge variant="outline">{member.isChild ? "Enfant" : "Adulte"}</Badge>
           {member.age != null && <Badge variant="outline">{member.age} ans</Badge>}
           {!member.isChild && member.goal && <Badge variant="outline">{GOAL_LABELS[member.goal] ?? member.goal}</Badge>}
+          {!member.isChild && !member.goal && <Badge variant="warning">Objectif non défini</Badge>}
           {member.hasAccount && <Badge variant="success">Compte actif</Badge>}
         </div>
+        {isSelf && !member.goal && (
+          <p className="mt-2 text-xs text-muted-foreground">
+            Définis ton objectif dans{" "}
+            <Link href="/parametres" className="text-primary underline-offset-4 hover:underline">
+              Paramètres → Nutrition
+            </Link>
+            .
+          </p>
+        )}
         {member.hasAccount && member.accountEmail && (
           <p className="mt-2 text-xs text-muted-foreground">{member.accountEmail}</p>
         )}

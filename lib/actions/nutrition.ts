@@ -27,6 +27,40 @@ export async function updateNutritionProfile(input: {
   await prisma.user.update({ where: { id: userId }, data: { height: input.height, weight: input.weight, sex: input.sex } });
 
   revalidatePath("/nutrition");
+  revalidatePath("/parametres");
+  revalidatePath("/famille");
+  revalidatePath("/dashboard");
+  return { ok: true };
+}
+
+export async function updateNutritionGoal(goal: NutritionGoal): Promise<ActionResult> {
+  const { userId } = await requireSessionHousehold();
+
+  const existing = await prisma.nutritionProfile.findUnique({ where: { userId } });
+  if (!existing?.sex || !existing.age || !existing.height || !existing.weight) {
+    return {
+      ok: false,
+      error: "Complète d'abord ton profil (âge, taille, poids) dans Paramètres → Nutrition.",
+    };
+  }
+
+  const computed = computeFullNutritionProfile({
+    sex: existing.sex,
+    age: existing.age,
+    height: existing.height,
+    weight: existing.weight,
+    activityLevel: (existing.activityLevel as ActivityLevel) ?? "MODERATE",
+    goal,
+  });
+
+  await prisma.nutritionProfile.update({
+    where: { userId },
+    data: { goal, ...computed },
+  });
+
+  revalidatePath("/nutrition");
+  revalidatePath("/parametres");
+  revalidatePath("/famille");
   revalidatePath("/dashboard");
   return { ok: true };
 }

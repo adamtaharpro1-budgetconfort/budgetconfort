@@ -35,6 +35,7 @@ export default function OnboardingPage() {
     mainGoal: "TOUT_FAIRE",
     sex: "F",
     activityLevel: "MODERATE",
+    weightGoal: "MAINTAIN",
     allergies: [],
     preferences: [],
   });
@@ -199,7 +200,10 @@ export default function OnboardingPage() {
               <ChoiceButton
                 key={g.value}
                 selected={data.mainGoal === g.value}
-                onClick={() => update("mainGoal", g.value)}
+                onClick={() => {
+                  update("mainGoal", g.value);
+                  if (g.value === "PERDRE_POIDS") update("weightGoal", "LOSE");
+                }}
               >
                 <span className="mr-2">{g.emoji}</span>
                 {g.label}
@@ -247,6 +251,23 @@ export default function OnboardingPage() {
                 </ChoiceButton>
               ))}
             </div>
+          </div>
+          <div className="mt-4 space-y-2">
+            <Label>Objectif de poids</Label>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { v: "LOSE", l: "Perdre du poids" },
+                { v: "MAINTAIN", l: "Maintenir" },
+                { v: "GAIN", l: "Prendre du poids" },
+              ].map((g) => (
+                <ChoiceButton key={g.v} selected={data.weightGoal === g.v} onClick={() => update("weightGoal", g.v as OnboardingInput["weightGoal"])}>
+                  {g.l}
+                </ChoiceButton>
+              ))}
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Utilisé pour tes calories et pour adapter tes portions dans les repas générés par l&apos;IA.
+            </p>
           </div>
         </StepCard>
       )}

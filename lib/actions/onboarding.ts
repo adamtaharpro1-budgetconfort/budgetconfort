@@ -20,6 +20,7 @@ const onboardingSchema = z.object({
   age: z.number().min(10).max(120),
   sex: z.enum(["M", "F"]),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
+  weightGoal: z.enum(["LOSE", "MAINTAIN", "GAIN"]).default("MAINTAIN"),
   allergies: z.array(z.string()).default([]),
   preferences: z.array(z.string()).default([]),
 });
@@ -41,21 +42,13 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
     return { ok: true };
   }
 
-  const goalToNutritionGoal: Record<string, NutritionGoal> = {
-    ECONOMISER: "MAINTAIN",
-    MIEUX_MANGER: "MAINTAIN",
-    PERDRE_POIDS: "LOSE",
-    ORGANISER_COURSES: "MAINTAIN",
-    TOUT_FAIRE: "MAINTAIN",
-  };
-
   const nutrition = computeFullNutritionProfile({
     sex: data.sex,
     weight: data.weight,
     height: data.height,
     age: data.age,
     activityLevel: data.activityLevel as ActivityLevel,
-    goal: goalToNutritionGoal[data.mainGoal],
+    goal: data.weightGoal as NutritionGoal,
   });
 
   await prisma.$transaction(async (tx) => {
@@ -155,7 +148,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
         age: data.age,
         height: data.height,
         weight: data.weight,
-        goal: goalToNutritionGoal[data.mainGoal],
+        goal: data.weightGoal,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,
@@ -172,7 +165,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
         age: data.age,
         height: data.height,
         weight: data.weight,
-        goal: goalToNutritionGoal[data.mainGoal],
+        goal: data.weightGoal,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,

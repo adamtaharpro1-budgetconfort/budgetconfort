@@ -15,15 +15,17 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Plus } from "lucide-react";
-import { logNutritionEntry } from "@/lib/actions/nutrition";
+import { logNutritionEntry, updateNutritionGoal } from "@/lib/actions/nutrition";
 import { calculateBMI } from "@/lib/nutrition-calc";
 import { BmiGauge } from "@/components/nutrition/bmi-gauge";
+import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@/components/ui/select";
 import { toast } from "sonner";
 
 interface Props {
   profile: {
     height: number | null;
     weight: number | null;
+    goal: string | null;
     bmr: number | null;
     tdee: number | null;
     calorieTarget: number | null;
@@ -36,6 +38,12 @@ interface Props {
   todayLog: { caloriesConsumed: number; proteins: number; carbs: number; fats: number; waterMl: number } | null;
 }
 
+const GOAL_OPTIONS = [
+  { value: "LOSE", label: "Perdre du poids" },
+  { value: "MAINTAIN", label: "Maintenir mon poids" },
+  { value: "GAIN", label: "Prendre du poids" },
+];
+
 export function NutritionClient({ profile, todayLog }: Props) {
   const bmi = profile?.height && profile?.weight ? calculateBMI(profile.weight, profile.height) : null;
   const caloriesConsumed = todayLog?.caloriesConsumed ?? 0;
@@ -44,6 +52,8 @@ export function NutritionClient({ profile, todayLog }: Props) {
 
   return (
     <div className="space-y-6">
+      <GoalSelector currentGoal={profile?.goal ?? null} hasProfile={!!profile?.height && !!profile?.weight} />
+
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="lg:col-span-1">
           <CardHeader>
@@ -109,6 +119,44 @@ export function NutritionClient({ profile, todayLog }: Props) {
         </CardContent>
       </Card>
     </div>
+  );
+}
+
+function GoalSelector({ currentGoal, hasProfile }: { currentGoal: string | null; hasProfile: boolean }) {
+  const [goal, setGoal] = useState(currentGoal ?? "MAINTAIN");
+  const [loading, setLoading] = useState(false);
+
+  async function handleChange(value: string) {
+    setGoal(value);
+    if (!hasProfile) {
+      toast.error("Renseigne d'abord ton âge, ta taille et ton poids dans Paramètres → Nutrition.");
+      return;
+    }
+    setLoading(true);
+    const result = await updateNutritionGoal(value as never);
+    setLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    toast.success("Objectif mis à jour ✨");
+  }
+
+  return (
+    <Card>
+      <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Mon objectif</p>
+          <p className="text-xs text-muted-foreground">Utilisé pour tes calories et tes portions dans les repas générés par l&apos;IA.</p>
+        </div>
+        <Select value={goal} onValueChange={handleChange} disabled={loading}>
+          <SelectTrigger className="w-full sm:w-56"><SelectValue /></SelectTrigger>
+          <SelectContent>
+            {GOAL_OPTIONS.map((o) => <SelectItem key={o.value} value={o.value}>{o.label}</SelectItem>)}
+          </SelectContent>
+        </Select>
+      </CardContent>
+    </Card>
   );
 }
 

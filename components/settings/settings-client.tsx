@@ -134,23 +134,27 @@ function ProfilTab({ user }: { user: Props["user"] }) {
 
 function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
   const [loading, setLoading] = useState(false);
+  const [sex, setSex] = useState(profile?.sex ?? "F");
+  const [goal, setGoal] = useState(profile?.goal ?? "MAINTAIN");
+  const [activityLevel, setActivityLevel] = useState(profile?.activityLevel ?? "MODERATE");
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     const form = new FormData(e.currentTarget);
     const result = await updateNutritionProfile({
-      sex: form.get("sex") as string,
+      sex,
       age: Number(form.get("age")),
       height: Number(form.get("height")),
       weight: Number(form.get("weight")),
-      goal: form.get("goal") as never,
-      activityLevel: form.get("activityLevel") as never,
+      goal: goal as never,
+      activityLevel: activityLevel as never,
       allergies: (form.get("allergies") as string).split(",").map((s) => s.trim()).filter(Boolean),
       preferences: (form.get("preferences") as string).split(",").map((s) => s.trim()).filter(Boolean),
     });
     setLoading(false);
     if (result.ok) toast.success("Profil nutritionnel mis à jour");
+    else toast.error(result.error);
   }
 
   return (
@@ -164,7 +168,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Sexe</Label>
-              <Select name="sex" defaultValue={profile?.sex ?? "F"}>
+              <Select value={sex} onValueChange={setSex}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="F">Femme</SelectItem>
@@ -186,7 +190,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
             </div>
             <div className="space-y-2">
               <Label>Objectif</Label>
-              <Select name="goal" defaultValue={profile?.goal ?? "MAINTAIN"}>
+              <Select value={goal} onValueChange={setGoal}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="LOSE">Perdre du poids</SelectItem>
@@ -197,7 +201,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
             </div>
             <div className="space-y-2">
               <Label>Activité</Label>
-              <Select name="activityLevel" defaultValue={profile?.activityLevel ?? "MODERATE"}>
+              <Select value={activityLevel} onValueChange={setActivityLevel}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="SEDENTARY">Sédentaire</SelectItem>
