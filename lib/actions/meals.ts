@@ -37,6 +37,8 @@ const mealPlanSchema = z.object({
   adviceMessage: z.string(),
 });
 
+const singleRecipeSchema = z.object({ recipe: recipeSchema, adviceMessage: z.string() });
+
 // Répartition indicative des calories quotidiennes par type de repas.
 const MEAL_CALORIE_WEIGHT: Record<string, number> = {
   BREAKFAST: 0.25,
@@ -45,24 +47,21 @@ const MEAL_CALORIE_WEIGHT: Record<string, number> = {
   SNACK: 0.1,
 };
 
+const MEAL_TYPE_LABELS: Record<string, string> = {
+  BREAKFAST: "petit-déjeuner",
+  LUNCH: "déjeuner",
+  DINNER: "dîner",
+  SNACK: "collation",
+};
+
 const GOAL_LABELS: Record<string, string> = {
   LOSE: "veut perdre du poids",
   MAINTAIN: "veut maintenir son poids",
   GAIN: "veut prendre du poids",
 };
 
-export interface GenerateMealPlanInput {
-  numDays: number;
-  mealTypes: MealType[];
-  budgetTotal?: number;
-  servings: number;
-  cuisine?: string;
-  startDate?: Date;
-}
-
-export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<ActionResult & { adviceMessage?: string }> {
-  const { userId, householdId } = await requireSessionHousehold();
-
+/** Contexte nutritionnel/foyer partagé par la génération d'un plan complet et la régénération d'un seul repas. */
+async function buildMealPlanContext(userId: string, householdId: string, servings: number) {
   const [nutritionProfile, pantryItems, members] = await Promise.all([
     prisma.nutritionProfile.findUnique({ where: { userId } }),
     prisma.pantryItem.findMany({ where: { householdId }, take: 30, select: { name: true } }),
@@ -72,7 +71,6 @@ export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<
     }),
   ]);
 
-  const startDate = input.startDate ?? new Date();
   const pantryNames = pantryItems.map((p) => p.name).join(", ") || "aucun produit en stock connu";
 
   // Besoins caloriques + objectif de chaque membre, pour dimensionner ses portions individuelles.
@@ -92,13 +90,13 @@ export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<
     }),
   }));
 
-  const adultsCount = members.filter((m) => !m.isChild).length || input.servings;
+  const adultsCount = members.filter((m) => !m.isChild).length || servings;
   const childrenCount = members.filter((m) => m.isChild).length;
   const childrenAges = members.filter((m) => m.isChild && m.age != null).map((m) => m.age);
   const householdBreakdown =
     childrenCount > 0
       ? `Composition du foyer : ${adultsCount} adulte(s) et ${childrenCount} enfant(s)${childrenAges.length ? ` (âges : ${childrenAges.join(", ")})` : ""}. Adapte les portions : portions pleines pour les adultes, portions réduites et adaptées au goût des enfants selon leur âge.`
-      : `Composition du foyer : ${input.servings} personne(s) (portions standards pour tous).`;
+      : `Composition du foyer : ${servings} personne(s) (portions standards pour tous).`;
 
   const goalNotes = memberProfiles
     .filter((m) => !m.isChild && m.goal && m.goal !== "MAINTAIN")
@@ -108,18 +106,60 @@ export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<
       ? `Objectifs individuels à prendre en compte (les portions de chacun seront ajustées automatiquement selon ses calories, mais privilégie des recettes qui restent adaptées à un objectif de perte de poids quand c'est pertinent — légères, riches en protéines, pas trop caloriques) : ${goalNotes.join(", ")}.`
       : "";
 
+  return { nutritionProfile, pantryNames, memberProfiles, householdBreakdown, goalBlock };
+}
+
+/** Crée les portions individuelles d'un repas (part des calories selon le besoin de chaque membre). */
+function buildPortionsData(
+  mealPlanEntryId: string,
+  mealType: string,
+  recipeCalories: number,
+  recipeServingWeightGrams: number,
+  memberProfiles: Awaited<ReturnType<typeof buildMealPlanContext>>["memberProfiles"],
+  weightSum: number
+) {
+  const mealWeight = (MEAL_CALORIE_WEIGHT[mealType] ?? 0.25) / weightSum;
+  return memberProfiles
+    .filter((m) => m.calorieTarget)
+    .map((m) => {
+      const mealCalories = m.calorieTarget! * mealWeight;
+      const ratio = Math.min(Math.max(mealCalories / recipeCalories, 0.5), 1.6);
+      return {
+        mealPlanEntryId,
+        memberId: m.id,
+        calories: Math.round(recipeCalories * ratio),
+        grams: Math.round(recipeServingWeightGrams * ratio),
+      };
+    });
+}
+
+export interface GenerateMealPlanInput {
+  numDays: number;
+  mealTypes: MealType[];
+  budgetTotal?: number;
+  servings: number;
+  cuisine?: string;
+  startDate?: Date;
+}
+
+export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<ActionResult & { adviceMessage?: string }> {
+  const { userId, householdId } = await requireSessionHousehold();
+
+  const startDate = input.startDate ?? new Date();
+  const ctx = await buildMealPlanContext(userId, householdId, input.servings);
+
   const prompt = `Tu es un chef cuisinier et nutritionniste. Génère un plan de repas de ${input.numDays} jour(s) pour ${input.servings} personne(s).
 
 Contraintes :
-- ${householdBreakdown}
-- ${goalBlock}
+- ${ctx.householdBreakdown}
+- ${ctx.goalBlock}
 - Repas à générer chaque jour : ${input.mealTypes.join(", ")}
 - Budget total pour la période : ${input.budgetTotal ? `${input.budgetTotal} €` : "raisonnable, sans contrainte stricte"}
-- Objectif calorique quotidien de référence : ${nutritionProfile?.calorieTarget ?? "environ 2000"} kcal
-- Allergies à éviter absolument : ${nutritionProfile?.allergies?.join(", ") || "aucune"}
-- Préférences alimentaires : ${nutritionProfile?.preferences?.join(", ") || "aucune"}
+- Objectif calorique quotidien de référence : ${ctx.nutritionProfile?.calorieTarget ?? "environ 2000"} kcal
+- Allergies à éviter absolument : ${ctx.nutritionProfile?.allergies?.join(", ") || "aucune"}
+- Préférences alimentaires : ${ctx.nutritionProfile?.preferences?.join(", ") || "aucune"}
 - Cuisine souhaitée : ${input.cuisine || "variée"}
-- Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${pantryNames}
+- Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${ctx.pantryNames}
 
 Pour chaque recette, donne un nom, le temps de préparation, la difficulté, les calories d'UNE portion standard, le poids en grammes d'UNE portion standard (servingWeightGrams), un prix estimé en euros, les macronutriments (protéines/glucides/lipides en grammes), les ingrédients avec quantités pour l'ensemble des convives, et les étapes de préparation numérotées. Termine par un court message de conseil personnalisé (adviceMessage) sur ce menu.`;
 
@@ -176,19 +216,14 @@ Pour chaque recette, donne un nom, le temps de préparation, la difficulté, les
         // Portion individuelle : part des calories du repas selon le besoin quotidien de chaque
         // membre, ramenée au poids/calories d'une portion standard de la recette. Bornée pour
         // éviter des portions absurdes en cas d'estimation extrême.
-        const mealWeight = (MEAL_CALORIE_WEIGHT[meal.mealType] ?? 0.25) / weightSum;
-        const portionsData = memberProfiles
-          .filter((m) => m.calorieTarget)
-          .map((m) => {
-            const mealCalories = m.calorieTarget! * mealWeight;
-            const ratio = Math.min(Math.max(mealCalories / meal.recipe.calories, 0.5), 1.6);
-            return {
-              mealPlanEntryId: entry.id,
-              memberId: m.id,
-              calories: Math.round(meal.recipe.calories * ratio),
-              grams: Math.round(meal.recipe.servingWeightGrams * ratio),
-            };
-          });
+        const portionsData = buildPortionsData(
+          entry.id,
+          meal.mealType,
+          meal.recipe.calories,
+          meal.recipe.servingWeightGrams,
+          ctx.memberProfiles,
+          weightSum
+        );
 
         if (portionsData.length > 0) {
           await tx.mealPortion.createMany({ data: portionsData });
@@ -235,4 +270,106 @@ export async function assignRecipeToSlot(input: { date: Date; mealType: MealType
   });
   revalidatePath("/repas");
   revalidatePath("/dashboard");
+}
+
+/** Régénère uniquement un repas (une nouvelle recette IA différente), sans toucher au reste du plan. */
+export async function regenerateMealSlot(entryId: string): Promise<ActionResult & { adviceMessage?: string }> {
+  const { userId, householdId } = await requireSessionHousehold();
+
+  const entry = await prisma.mealPlanEntry.findFirst({
+    where: { id: entryId, householdId },
+    include: { recipe: true },
+  });
+  if (!entry) return { ok: false, error: "Repas introuvable." };
+
+  const ctx = await buildMealPlanContext(userId, householdId, entry.servings);
+
+  const prompt = `Tu es un chef cuisinier et nutritionniste. L'utilisateur n'aime pas la recette actuellement proposée pour son ${MEAL_TYPE_LABELS[entry.mealType] ?? entry.mealType.toLowerCase()}${entry.recipe ? ` ("${entry.recipe.name}")` : ""} et veut une alternative. Propose UNE NOUVELLE recette différente pour ce repas, pour ${entry.servings} personne(s).
+
+Contraintes :
+- ${ctx.householdBreakdown}
+- ${ctx.goalBlock}
+- Objectif calorique quotidien de référence : ${ctx.nutritionProfile?.calorieTarget ?? "environ 2000"} kcal
+- Allergies à éviter absolument : ${ctx.nutritionProfile?.allergies?.join(", ") || "aucune"}
+- Préférences alimentaires : ${ctx.nutritionProfile?.preferences?.join(", ") || "aucune"}
+- Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${ctx.pantryNames}
+- La nouvelle recette doit être clairement différente de la précédente (autre plat, pas juste une variante).
+
+Donne un nom, le temps de préparation, la difficulté, les calories d'UNE portion standard, le poids en grammes d'UNE portion standard (servingWeightGrams), un prix estimé en euros, les macronutriments (protéines/glucides/lipides en grammes), les ingrédients avec quantités pour l'ensemble des convives, et les étapes de préparation numérotées. Termine par un court message de conseil (adviceMessage).`;
+
+  let result;
+  try {
+    result = await generateObject({ model: AI_MODEL, schema: singleRecipeSchema, prompt });
+  } catch (error) {
+    console.error("[regenerateMealSlot] failed:", error);
+    return { ok: false, error: "La régénération IA a échoué. Réessaie dans quelques instants." };
+  }
+
+  const recipe = result.object.recipe;
+
+  await prisma.$transaction(async (tx) => {
+    const newRecipe = await tx.recipe.create({
+      data: {
+        name: recipe.name,
+        cuisine: recipe.cuisine,
+        prepTime: recipe.prepTime,
+        difficulty: recipe.difficulty,
+        calories: recipe.calories,
+        servingWeightGrams: recipe.servingWeightGrams,
+        priceEstimate: recipe.priceEstimate,
+        proteins: recipe.proteins,
+        carbs: recipe.carbs,
+        fats: recipe.fats,
+        servings: recipe.servings,
+        steps: recipe.steps,
+        isAiGenerated: true,
+        ingredients: {
+          create: recipe.ingredients.map((i) => ({ name: i.name, quantity: i.quantity, unit: i.unit })),
+        },
+      },
+    });
+
+    await tx.mealPlanEntry.update({ where: { id: entry.id }, data: { recipeId: newRecipe.id } });
+    await tx.mealPortion.deleteMany({ where: { mealPlanEntryId: entry.id } });
+
+    const portionsData = buildPortionsData(
+      entry.id,
+      entry.mealType,
+      recipe.calories,
+      recipe.servingWeightGrams,
+      ctx.memberProfiles,
+      1
+    );
+    if (portionsData.length > 0) {
+      await tx.mealPortion.createMany({ data: portionsData });
+    }
+  });
+
+  revalidatePath("/repas");
+  revalidatePath("/dashboard");
+  return { ok: true, adviceMessage: result.object.adviceMessage };
+}
+
+/** Supprime puis régénère tous les repas d'une journée donnée avec l'IA. */
+export async function regenerateDayMeals(dateIso: string): Promise<ActionResult & { adviceMessage?: string }> {
+  const { householdId } = await requireSessionHousehold();
+
+  const date = new Date(dateIso);
+  date.setHours(0, 0, 0, 0);
+  const nextDate = new Date(date);
+  nextDate.setDate(nextDate.getDate() + 1);
+
+  const existing = await prisma.mealPlanEntry.findMany({
+    where: { householdId, date: { gte: date, lt: nextDate } },
+  });
+  if (existing.length === 0) {
+    return { ok: false, error: "Aucun repas à régénérer pour cette journée." };
+  }
+
+  const mealTypes = Array.from(new Set(existing.map((e) => e.mealType)));
+  const servings = existing[0].servings;
+
+  await prisma.mealPlanEntry.deleteMany({ where: { id: { in: existing.map((e) => e.id) } } });
+
+  return generateAiMealPlan({ numDays: 1, mealTypes, servings, startDate: date });
 }

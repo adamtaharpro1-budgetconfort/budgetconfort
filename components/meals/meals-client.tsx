@@ -16,8 +16,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Sparkles, Trash2, Heart, Clock, Flame, Users, ChefHat } from "lucide-react";
-import { generateAiMealPlan, removeMealPlanEntry, toggleFavoriteRecipe } from "@/lib/actions/meals";
+import { Sparkles, Trash2, Heart, Clock, Flame, Users, ChefHat, RefreshCw } from "lucide-react";
+import {
+  generateAiMealPlan,
+  removeMealPlanEntry,
+  toggleFavoriteRecipe,
+  regenerateMealSlot,
+  regenerateDayMeals,
+} from "@/lib/actions/meals";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useFakeProgress } from "@/lib/hooks/use-fake-progress";
@@ -89,8 +95,9 @@ export function MealsClient({
       <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         {days.map((day) => (
           <Card key={day.date}>
-            <CardHeader>
+            <CardHeader className="flex-row items-center justify-between gap-2">
               <CardTitle className="text-base">{day.label}</CardTitle>
+              {day.entries.some((e) => e.recipe) && <RegenerateDayButton date={day.date} />}
             </CardHeader>
             <CardContent className="space-y-3">
               {MEAL_TYPES.map((mt) => {
@@ -136,10 +143,23 @@ export function MealsClient({
 
 function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: string; onOpen: () => void }) {
   const [isPending, startTransition] = useTransition();
+  const [isRegenerating, startRegenerate] = useTransition();
   if (!entry.recipe) return null;
+
+  function handleRegenerate() {
+    startRegenerate(async () => {
+      const result = await regenerateMealSlot(entry.id);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.adviceMessage || "Repas régénéré !");
+    });
+  }
+
   return (
-    <div className="mt-1 flex items-start justify-between gap-2">
-      <button type="button" onClick={onOpen} className="flex-1 text-left">
+    <div className={cn("mt-1 flex items-start justify-between gap-2", isRegenerating && "opacity-50")}>
+      <button type="button" onClick={onOpen} className="flex-1 text-left" disabled={isRegenerating}>
         <p className="text-sm font-medium hover:underline">{entry.recipe.name}</p>
         <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
           {entry.recipe.calories && (
@@ -165,14 +185,51 @@ function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: stri
           </div>
         )}
       </button>
-      <button
-        disabled={isPending}
-        onClick={() => startTransition(() => removeMealPlanEntry(entry.id))}
-        className="text-muted-foreground hover:text-destructive"
-      >
-        <Trash2 className="h-3.5 w-3.5" />
-      </button>
+      <div className="flex shrink-0 items-center gap-1.5">
+        <button
+          disabled={isPending || isRegenerating}
+          onClick={handleRegenerate}
+          title="Régénérer ce repas"
+          className="text-muted-foreground hover:text-primary"
+        >
+          <RefreshCw className={cn("h-3.5 w-3.5", isRegenerating && "animate-spin")} />
+        </button>
+        <button
+          disabled={isPending || isRegenerating}
+          onClick={() => startTransition(() => removeMealPlanEntry(entry.id))}
+          className="text-muted-foreground hover:text-destructive"
+        >
+          <Trash2 className="h-3.5 w-3.5" />
+        </button>
+      </div>
     </div>
+  );
+}
+
+function RegenerateDayButton({ date }: { date: string }) {
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick() {
+    startTransition(async () => {
+      const result = await regenerateDayMeals(date);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      toast.success(result.adviceMessage || "Journée régénérée !");
+    });
+  }
+
+  return (
+    <button
+      disabled={isPending}
+      onClick={handleClick}
+      title="Régénérer toute la journée"
+      className="flex shrink-0 items-center gap-1 text-[11px] text-muted-foreground hover:text-primary disabled:opacity-50"
+    >
+      <RefreshCw className={cn("h-3.5 w-3.5", isPending && "animate-spin")} />
+      {isPending ? "..." : "Régénérer"}
+    </button>
   );
 }
 
