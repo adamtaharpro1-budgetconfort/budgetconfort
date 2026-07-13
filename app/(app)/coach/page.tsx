@@ -6,7 +6,7 @@ import { DefaultChatTransport } from "ai";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Send, Bot, User } from "lucide-react";
+import { Send, Bot, User, TriangleAlert } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 const SUGGESTIONS = [
@@ -18,7 +18,7 @@ const SUGGESTIONS = [
 
 export default function CoachPage() {
   const [input, setInput] = useState("");
-  const { messages, sendMessage, status } = useChat({
+  const { messages, sendMessage, status, error, regenerate } = useChat({
     transport: new DefaultChatTransport({ api: "/api/coach" }),
   });
 
@@ -66,6 +66,24 @@ export default function CoachPage() {
             </div>
           </div>
         ))}
+
+        {error && (
+          <div className="flex items-start gap-3 rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive">
+            <TriangleAlert className="mt-0.5 h-4 w-4 shrink-0" />
+            <div className="flex-1">
+              <p className="font-medium">La réponse n&apos;a pas pu être générée.</p>
+              <p className="mt-0.5 text-xs text-destructive/80">
+                Le service IA est peut-être temporairement surchargé. Réessaie dans quelques instants.
+              </p>
+            </div>
+            <button
+              onClick={() => regenerate()}
+              className="shrink-0 rounded-md bg-destructive/15 px-2 py-1 text-xs font-medium hover:bg-destructive/25"
+            >
+              Réessayer
+            </button>
+          </div>
+        )}
       </div>
 
       <form
