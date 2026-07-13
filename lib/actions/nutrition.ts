@@ -3,7 +3,13 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
-import { computeFullNutritionProfile, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import {
+  computeFullNutritionProfile,
+  estimateGoalPlan,
+  calculateMacros,
+  type ActivityLevel,
+  type NutritionGoal,
+} from "@/lib/nutrition-calc";
 import type { ActionResult } from "@/lib/actions/auth";
 
 export async function updateNutritionProfile(input: {
@@ -13,19 +19,30 @@ export async function updateNutritionProfile(input: {
   weight: number;
   goal: NutritionGoal;
   targetWeightDelta?: number | null;
+  targetDurationMonths?: number | null;
   activityLevel: ActivityLevel;
   allergies: string[];
   preferences: string[];
 }): Promise<ActionResult> {
   const { userId } = await requireSessionHousehold();
-  const { targetWeightDelta, ...calcInput } = input;
-  const computed = computeFullNutritionProfile(calcInput);
+  const { targetWeightDelta, targetDurationMonths, ...calcInput } = input;
+  const base = computeFullNutritionProfile(calcInput);
   const normalizedDelta = input.goal === "MAINTAIN" ? null : targetWeightDelta ?? null;
+  const normalizedDuration = input.goal === "MAINTAIN" ? null : targetDurationMonths ?? null;
+  const plan = estimateGoalPlan(base.tdee, input.goal, normalizedDelta, normalizedDuration);
+  const computed = { bmr: base.bmr, tdee: base.tdee, calorieTarget: plan.dailyCalorieTarget, ...calculateMacros(plan.dailyCalorieTarget) };
 
   await prisma.nutritionProfile.upsert({
     where: { userId },
-    create: { userId, ...input, targetWeightDelta: normalizedDelta, ...computed, forbiddenFoods: [] },
-    update: { ...input, targetWeightDelta: normalizedDelta, ...computed },
+    create: {
+      userId,
+      ...input,
+      targetWeightDelta: normalizedDelta,
+      targetDurationMonths: normalizedDuration,
+      ...computed,
+      forbiddenFoods: [],
+    },
+    update: { ...input, targetWeightDelta: normalizedDelta, targetDurationMonths: normalizedDuration, ...computed },
   });
   await prisma.user.update({ where: { id: userId }, data: { height: input.height, weight: input.weight, sex: input.sex } });
 
@@ -36,7 +53,11 @@ export async function updateNutritionProfile(input: {
   return { ok: true };
 }
 
-export async function updateNutritionGoal(goal: NutritionGoal, targetWeightDelta?: number | null): Promise<ActionResult> {
+export async function updateNutritionGoal(
+  goal: NutritionGoal,
+  targetWeightDelta?: number | null,
+  targetDurationMonths?: number | null
+): Promise<ActionResult> {
   const { userId } = await requireSessionHousehold();
 
   const existing = await prisma.nutritionProfile.findUnique({ where: { userId } });
@@ -47,7 +68,7 @@ export async function updateNutritionGoal(goal: NutritionGoal, targetWeightDelta
     };
   }
 
-  const computed = computeFullNutritionProfile({
+  const base = computeFullNutritionProfile({
     sex: existing.sex,
     age: existing.age,
     height: existing.height,
@@ -57,10 +78,13 @@ export async function updateNutritionGoal(goal: NutritionGoal, targetWeightDelta
   });
 
   const normalizedDelta = goal === "MAINTAIN" ? null : targetWeightDelta ?? null;
+  const normalizedDuration = goal === "MAINTAIN" ? null : targetDurationMonths ?? null;
+  const plan = estimateGoalPlan(base.tdee, goal, normalizedDelta, normalizedDuration);
+  const computed = { bmr: base.bmr, tdee: base.tdee, calorieTarget: plan.dailyCalorieTarget, ...calculateMacros(plan.dailyCalorieTarget) };
 
   await prisma.nutritionProfile.update({
     where: { userId },
-    data: { goal, targetWeightDelta: normalizedDelta, ...computed },
+    data: { goal, targetWeightDelta: normalizedDelta, targetDurationMonths: normalizedDuration, ...computed },
   });
 
   revalidatePath("/nutrition");

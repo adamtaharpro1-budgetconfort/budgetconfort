@@ -28,6 +28,7 @@ interface Props {
     weight: number | null;
     goal: string | null;
     targetWeightDelta: number | null;
+    targetDurationMonths: number | null;
     bmr: number | null;
     tdee: number | null;
     calorieTarget: number | null;
@@ -57,6 +58,7 @@ export function NutritionClient({ profile, todayLog }: Props) {
       <GoalSelector
         currentGoal={profile?.goal ?? null}
         currentTargetWeightDelta={profile?.targetWeightDelta ?? null}
+        currentTargetDurationMonths={profile?.targetDurationMonths ?? null}
         hasProfile={!!profile?.height && !!profile?.weight}
         tdee={profile?.tdee ?? null}
       />
@@ -132,11 +134,13 @@ export function NutritionClient({ profile, todayLog }: Props) {
 function GoalSelector({
   currentGoal,
   currentTargetWeightDelta,
+  currentTargetDurationMonths,
   hasProfile,
   tdee,
 }: {
   currentGoal: string | null;
   currentTargetWeightDelta: number | null;
+  currentTargetDurationMonths: number | null;
   hasProfile: boolean;
   tdee: number | null;
 }) {
@@ -144,16 +148,20 @@ function GoalSelector({
   const [targetWeightDelta, setTargetWeightDelta] = useState(
     currentTargetWeightDelta != null ? String(currentTargetWeightDelta) : ""
   );
+  const [targetDurationMonths, setTargetDurationMonths] = useState(
+    currentTargetDurationMonths != null ? String(currentTargetDurationMonths) : ""
+  );
   const [loading, setLoading] = useState(false);
 
-  async function save(nextGoal: string, nextDeltaRaw: string) {
+  async function save(nextGoal: string, nextDeltaRaw: string, nextDurationRaw: string) {
     if (!hasProfile) {
       toast.error("Renseigne d'abord ton âge, ta taille et ton poids dans Paramètres → Nutrition.");
       return;
     }
     setLoading(true);
     const delta = nextDeltaRaw ? Number(nextDeltaRaw) : null;
-    const result = await updateNutritionGoal(nextGoal as never, delta);
+    const duration = nextDurationRaw ? Number(nextDurationRaw) : null;
+    const result = await updateNutritionGoal(nextGoal as never, delta, duration);
     setLoading(false);
     if (!result.ok) {
       toast.error(result.error);
@@ -164,11 +172,11 @@ function GoalSelector({
 
   function handleGoalChange(value: string) {
     setGoal(value);
-    save(value, value === "MAINTAIN" ? "" : targetWeightDelta);
+    save(value, value === "MAINTAIN" ? "" : targetWeightDelta, value === "MAINTAIN" ? "" : targetDurationMonths);
   }
 
-  function handleDeltaBlur() {
-    save(goal, targetWeightDelta);
+  function handleFieldBlur() {
+    save(goal, targetWeightDelta, targetDurationMonths);
   }
 
   return (
@@ -188,21 +196,39 @@ function GoalSelector({
         </div>
 
         {goal !== "MAINTAIN" && (
-          <div className="flex flex-col gap-2 sm:max-w-xs">
-            <Label htmlFor="targetWeightDelta" className="text-xs">
-              Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}
-            </Label>
-            <Input
-              id="targetWeightDelta"
-              type="number"
-              min={0}
-              step={0.5}
-              placeholder="ex : 5"
-              value={targetWeightDelta}
-              onChange={(e) => setTargetWeightDelta(e.target.value)}
-              onBlur={handleDeltaBlur}
-              disabled={loading}
-            />
+          <div className="grid gap-3 sm:max-w-md sm:grid-cols-2">
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="targetWeightDelta" className="text-xs">
+                Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}
+              </Label>
+              <Input
+                id="targetWeightDelta"
+                type="number"
+                min={0}
+                step={0.5}
+                placeholder="ex : 5"
+                value={targetWeightDelta}
+                onChange={(e) => setTargetWeightDelta(e.target.value)}
+                onBlur={handleFieldBlur}
+                disabled={loading}
+              />
+            </div>
+            <div className="flex flex-col gap-2">
+              <Label htmlFor="targetDurationMonths" className="text-xs">
+                En combien de mois ? (optionnel)
+              </Label>
+              <Input
+                id="targetDurationMonths"
+                type="number"
+                min={0}
+                step={0.5}
+                placeholder="ex : 2"
+                value={targetDurationMonths}
+                onChange={(e) => setTargetDurationMonths(e.target.value)}
+                onBlur={handleFieldBlur}
+                disabled={loading}
+              />
+            </div>
           </div>
         )}
 
@@ -211,6 +237,7 @@ function GoalSelector({
             tdee={tdee}
             goal={goal as NutritionGoal}
             targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+            targetDurationMonths={goal === "MAINTAIN" ? null : Number(targetDurationMonths) || null}
           />
         )}
       </CardContent>

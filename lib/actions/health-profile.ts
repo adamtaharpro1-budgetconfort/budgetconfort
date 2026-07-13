@@ -4,7 +4,13 @@ import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
-import { computeFullNutritionProfile, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import {
+  computeFullNutritionProfile,
+  estimateGoalPlan,
+  calculateMacros,
+  type ActivityLevel,
+  type NutritionGoal,
+} from "@/lib/nutrition-calc";
 import type { ActionResult } from "@/lib/actions/auth";
 
 const healthProfileSchema = z.object({
@@ -16,6 +22,7 @@ const healthProfileSchema = z.object({
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
   goal: z.enum(["LOSE", "MAINTAIN", "GAIN"]),
   targetWeightDelta: z.number().min(0).max(200).nullable().default(null),
+  targetDurationMonths: z.number().min(0).max(60).nullable().default(null),
   allergies: z.array(z.string()).default([]),
   preferences: z.array(z.string()).default([]),
 });
@@ -31,7 +38,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
   const data = parsed.data;
 
   const userId = session.user.id;
-  const nutrition = computeFullNutritionProfile({
+  const base = computeFullNutritionProfile({
     sex: data.sex,
     weight: data.weight,
     height: data.height,
@@ -40,6 +47,14 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
     goal: data.goal as NutritionGoal,
   });
   const normalizedDelta = data.goal === "MAINTAIN" ? null : data.targetWeightDelta;
+  const normalizedDuration = data.goal === "MAINTAIN" ? null : data.targetDurationMonths;
+  const plan = estimateGoalPlan(base.tdee, data.goal as NutritionGoal, normalizedDelta, normalizedDuration);
+  const nutrition = {
+    bmr: base.bmr,
+    tdee: base.tdee,
+    calorieTarget: plan.dailyCalorieTarget,
+    ...calculateMacros(plan.dailyCalorieTarget),
+  };
 
   await prisma.$transaction(async (tx) => {
     await tx.user.update({
@@ -62,6 +77,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
         weight: data.weight,
         goal: data.goal,
         targetWeightDelta: normalizedDelta,
+        targetDurationMonths: normalizedDuration,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,
@@ -80,6 +96,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
         weight: data.weight,
         goal: data.goal,
         targetWeightDelta: normalizedDelta,
+        targetDurationMonths: normalizedDuration,
         activityLevel: data.activityLevel,
         allergies: data.allergies,
         preferences: data.preferences,

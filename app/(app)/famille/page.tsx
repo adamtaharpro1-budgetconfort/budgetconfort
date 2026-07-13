@@ -10,7 +10,14 @@ export default async function FamillePage() {
     prisma.householdMember.findMany({
       where: { householdId: household.id },
       include: {
-        user: { select: { firstName: true, email: true, image: true, nutritionProfile: { select: { goal: true, targetWeightDelta: true } } } },
+        user: {
+          select: {
+            firstName: true,
+            email: true,
+            image: true,
+            nutritionProfile: { select: { goal: true, targetWeightDelta: true, targetDurationMonths: true } },
+          },
+        },
       },
       orderBy: { joinedAt: "asc" },
     }),
@@ -39,6 +46,7 @@ export default async function FamillePage() {
           weight: m.weight,
           goal: m.goal ?? m.user?.nutritionProfile?.goal ?? null,
           targetWeightDelta: m.targetWeightDelta ?? m.user?.nutritionProfile?.targetWeightDelta ?? null,
+          targetDurationMonths: m.targetDurationMonths ?? m.user?.nutritionProfile?.targetDurationMonths ?? null,
           hasAccount: !!m.userId,
           accountEmail: m.user?.email ?? null,
           role: m.role,

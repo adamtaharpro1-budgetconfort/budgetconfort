@@ -26,6 +26,7 @@ interface Props {
     weight: number | null;
     goal: string | null;
     targetWeightDelta: number | null;
+    targetDurationMonths: number | null;
     activityLevel: string | null;
     allergies: string[];
     preferences: string[];
@@ -146,6 +147,9 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
   const [targetWeightDelta, setTargetWeightDelta] = useState(
     profile?.targetWeightDelta != null ? String(profile.targetWeightDelta) : ""
   );
+  const [targetDurationMonths, setTargetDurationMonths] = useState(
+    profile?.targetDurationMonths != null ? String(profile.targetDurationMonths) : ""
+  );
 
   const previewTdee =
     age && height && weight
@@ -166,6 +170,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
       weight: Number(weight),
       goal: goal as never,
       targetWeightDelta: goal === "MAINTAIN" ? null : targetWeightDelta ? Number(targetWeightDelta) : null,
+      targetDurationMonths: goal === "MAINTAIN" ? null : targetDurationMonths ? Number(targetDurationMonths) : null,
       activityLevel: activityLevel as never,
       allergies: (form.get("allergies") as string).split(",").map((s) => s.trim()).filter(Boolean),
       preferences: (form.get("preferences") as string).split(",").map((s) => s.trim()).filter(Boolean),
@@ -231,17 +236,30 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
               </Select>
             </div>
             {goal !== "MAINTAIN" && (
-              <div className="space-y-2">
-                <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  placeholder="ex : 5"
-                  value={targetWeightDelta}
-                  onChange={(e) => setTargetWeightDelta(e.target.value)}
-                />
-              </div>
+              <>
+                <div className="space-y-2">
+                  <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 5"
+                    value={targetWeightDelta}
+                    onChange={(e) => setTargetWeightDelta(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>En combien de mois ? (optionnel)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 2"
+                    value={targetDurationMonths}
+                    onChange={(e) => setTargetDurationMonths(e.target.value)}
+                  />
+                </div>
+              </>
             )}
           </div>
 
@@ -250,6 +268,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
               tdee={previewTdee}
               goal={goal as NutritionGoal}
               targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+              targetDurationMonths={goal === "MAINTAIN" ? null : Number(targetDurationMonths) || null}
             />
           )}
 

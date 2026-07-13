@@ -2,7 +2,13 @@ import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
 import { NutritionClient } from "@/components/nutrition/nutrition-client";
 import { FamilyNutrition } from "@/components/nutrition/family-nutrition";
-import { computeFullNutritionProfile, estimateChildNutrition, calculateBMI } from "@/lib/nutrition-calc";
+import {
+  computeFullNutritionProfile,
+  estimateChildNutrition,
+  estimateGoalPlan,
+  calculateMacros,
+  calculateBMI,
+} from "@/lib/nutrition-calc";
 
 export default async function NutritionPage() {
   const { userId, household } = await requireHousehold();
@@ -35,6 +41,7 @@ export default async function NutritionPage() {
         fatTarget: p.fatTarget,
         goal: p.goal,
         targetWeightDelta: p.targetWeightDelta,
+        targetDurationMonths: p.targetDurationMonths,
         tdee: p.tdee,
         computed: false,
       };
@@ -55,6 +62,7 @@ export default async function NutritionPage() {
         fatTarget: nutrition.fatTarget,
         goal: null,
         targetWeightDelta: null,
+        targetDurationMonths: null,
         tdee: null,
         computed: true,
       };
@@ -63,7 +71,7 @@ export default async function NutritionPage() {
     // Adulte sans compte : calcul à partir des infos de base saisies dans la page Famille.
     if (!m.isChild && m.sex && m.age && m.height && m.weight) {
       const goal = (m.goal as "LOSE" | "MAINTAIN" | "GAIN") ?? "MAINTAIN";
-      const nutrition = computeFullNutritionProfile({
+      const base = computeFullNutritionProfile({
         sex: m.sex,
         age: m.age,
         height: m.height,
@@ -71,19 +79,22 @@ export default async function NutritionPage() {
         activityLevel: "MODERATE",
         goal,
       });
+      const plan = estimateGoalPlan(base.tdee, goal, m.targetWeightDelta, m.targetDurationMonths);
+      const macros = calculateMacros(plan.dailyCalorieTarget);
       return {
         id: m.id,
         label: m.label ?? "Membre",
         isChild: false,
         age: m.age,
         bmi: calculateBMI(m.weight, m.height),
-        calorieTarget: nutrition.calorieTarget,
-        proteinTarget: nutrition.proteinTarget,
-        carbTarget: nutrition.carbTarget,
-        fatTarget: nutrition.fatTarget,
+        calorieTarget: plan.dailyCalorieTarget,
+        proteinTarget: macros.proteinTarget,
+        carbTarget: macros.carbTarget,
+        fatTarget: macros.fatTarget,
         goal,
         targetWeightDelta: m.targetWeightDelta,
-        tdee: nutrition.tdee,
+        targetDurationMonths: m.targetDurationMonths,
+        tdee: base.tdee,
         computed: true,
       };
     }
@@ -100,6 +111,7 @@ export default async function NutritionPage() {
       fatTarget: null,
       goal: m.goal,
       targetWeightDelta: m.targetWeightDelta,
+      targetDurationMonths: m.targetDurationMonths,
       tdee: null,
       computed: false,
     };

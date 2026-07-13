@@ -36,6 +36,7 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [targetWeightDelta, setTargetWeightDelta] = useState("");
+  const [targetDurationMonths, setTargetDurationMonths] = useState("");
   const [allergies, setAllergies] = useState<string[]>([]);
   const [preferences, setPreferences] = useState<string[]>([]);
 
@@ -64,6 +65,7 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
       activityLevel: activityLevel as never,
       goal: goal as never,
       targetWeightDelta: goal === "MAINTAIN" ? null : targetWeightDelta ? Number(targetWeightDelta) : null,
+      targetDurationMonths: goal === "MAINTAIN" ? null : targetDurationMonths ? Number(targetDurationMonths) : null,
       allergies,
       preferences,
     });
@@ -128,16 +130,29 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
               ))}
             </div>
             {goal !== "MAINTAIN" && (
-              <div className="space-y-2 pt-2">
-                <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  placeholder="ex : 5"
-                  value={targetWeightDelta}
-                  onChange={(e) => setTargetWeightDelta(e.target.value)}
-                />
+              <div className="grid grid-cols-2 gap-4 pt-2">
+                <div className="space-y-2">
+                  <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 5"
+                    value={targetWeightDelta}
+                    onChange={(e) => setTargetWeightDelta(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>En combien de mois ? (optionnel)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 2"
+                    value={targetDurationMonths}
+                    onChange={(e) => setTargetDurationMonths(e.target.value)}
+                  />
+                </div>
               </div>
             )}
             {previewTdee && (
@@ -145,6 +160,7 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
                 tdee={previewTdee}
                 goal={goal as NutritionGoal}
                 targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+                targetDurationMonths={goal === "MAINTAIN" ? null : Number(targetDurationMonths) || null}
                 className="mt-2"
               />
             )}

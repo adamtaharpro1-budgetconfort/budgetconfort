@@ -39,6 +39,7 @@ export default function OnboardingPage() {
     activityLevel: "MODERATE",
     weightGoal: "MAINTAIN",
     targetWeightDelta: null,
+    targetDurationMonths: null,
     allergies: [],
     preferences: [],
   });
@@ -276,7 +277,10 @@ export default function OnboardingPage() {
                   selected={data.weightGoal === g.v}
                   onClick={() => {
                     update("weightGoal", g.v as OnboardingInput["weightGoal"]);
-                    if (g.v === "MAINTAIN") update("targetWeightDelta", null);
+                    if (g.v === "MAINTAIN") {
+                      update("targetWeightDelta", null);
+                      update("targetDurationMonths", null);
+                    }
                   }}
                 >
                   {g.l}
@@ -287,16 +291,29 @@ export default function OnboardingPage() {
               Utilisé pour tes calories et pour adapter tes portions dans les repas générés par l&apos;IA.
             </p>
             {data.weightGoal !== "MAINTAIN" && (
-              <div className="space-y-2 pt-1">
-                <Label>Nombre de kg à {data.weightGoal === "LOSE" ? "perdre" : "prendre"}</Label>
-                <Input
-                  type="number"
-                  min={0}
-                  step={0.5}
-                  placeholder="ex : 5"
-                  value={data.targetWeightDelta ?? ""}
-                  onChange={(e) => update("targetWeightDelta", e.target.value ? Number(e.target.value) : null)}
-                />
+              <div className="grid grid-cols-2 gap-3 pt-1">
+                <div className="space-y-2">
+                  <Label>Nombre de kg à {data.weightGoal === "LOSE" ? "perdre" : "prendre"}</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 5"
+                    value={data.targetWeightDelta ?? ""}
+                    onChange={(e) => update("targetWeightDelta", e.target.value ? Number(e.target.value) : null)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label>En combien de mois ? (optionnel)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    step={0.5}
+                    placeholder="ex : 2"
+                    value={data.targetDurationMonths ?? ""}
+                    onChange={(e) => update("targetDurationMonths", e.target.value ? Number(e.target.value) : null)}
+                  />
+                </div>
               </div>
             )}
             {previewTdee && (
@@ -304,6 +321,7 @@ export default function OnboardingPage() {
                 tdee={previewTdee}
                 goal={(data.weightGoal ?? "MAINTAIN") as NutritionGoal}
                 targetWeightDelta={data.weightGoal === "MAINTAIN" ? null : data.targetWeightDelta}
+                targetDurationMonths={data.weightGoal === "MAINTAIN" ? null : data.targetDurationMonths}
                 className="mt-2"
               />
             )}

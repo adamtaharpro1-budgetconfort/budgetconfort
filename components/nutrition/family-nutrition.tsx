@@ -17,6 +17,7 @@ interface FamilyMemberNutrition {
   fatTarget: number | null;
   goal: string | null;
   targetWeightDelta: number | null;
+  targetDurationMonths: number | null;
   tdee: number | null;
   computed: boolean;
 }
@@ -50,7 +51,12 @@ export function FamilyNutrition({ members }: { members: FamilyMemberNutrition[] 
                 )}
                 {m.tdee != null && m.goal && (
                   <div className="mt-3">
-                    <GoalRecap tdee={m.tdee} goal={m.goal as NutritionGoal} targetWeightDelta={m.targetWeightDelta} />
+                    <GoalRecap
+                      tdee={m.tdee}
+                      goal={m.goal as NutritionGoal}
+                      targetWeightDelta={m.targetWeightDelta}
+                      targetDurationMonths={m.targetDurationMonths}
+                    />
                   </div>
                 )}
                 {m.computed && !m.isChild && (

@@ -69,30 +69,85 @@ export function estimateChildNutrition(age: number) {
 }
 
 const KCAL_PER_KG = 7700; // approximation standard : ~7700 kcal ≈ 1 kg de masse corporelle
+const WEEKS_PER_MONTH = 4.345;
+const MAX_SAFE_KG_PER_WEEK = 1; // recommandation santé : jamais plus de 1 kg/semaine, perte ou prise
+const MIN_SAFE_CALORIE_FLOOR = 1200; // plancher calorique jamais franchi, même pour un objectif agressif
 
-export interface GoalRecap {
+export interface GoalPlan {
   dailyCalorieTarget: number;
-  weeks: number | null; // null si MAINTAIN ou pas de kg cible renseigné
+  weeklyRateKg: number; // rythme réel utilisé pour le calcul (kg/semaine)
+  weeks: number | null; // durée réaliste estimée pour atteindre l'objectif
+  requestedWeeks: number | null; // durée initialement demandée par l'utilisateur, si renseignée
+  wasAdjusted: boolean; // true si le rythme demandé était dangereux et a été recalculé
   goal: NutritionGoal;
 }
 
 /**
- * Calcule le plafond/plancher calorique quotidien à respecter et le temps
- * estimé (en semaines) pour atteindre un objectif de poids donné.
+ * Calcule le plafond/plancher calorique quotidien et la durée réaliste pour
+ * atteindre un objectif de poids. Si la durée demandée impliquerait un
+ * rythme dangereux (> 1 kg/semaine, ou un plancher calorique franchi), le
+ * plan est automatiquement recalculé sur un rythme sûr et signalé via
+ * `wasAdjusted` plutôt que de suivre une valeur saisie par l'utilisateur.
  */
-export function estimateGoalRecap(
+const DEFAULT_DAILY_DELTA: Record<"LOSE" | "GAIN", number> = { LOSE: 500, GAIN: 300 };
+
+export function estimateGoalPlan(
   tdee: number,
   goal: NutritionGoal,
-  targetWeightDelta?: number | null
-): GoalRecap {
-  const dailyCalorieTarget = calculateCalorieTarget(tdee, goal);
-  if (goal === "MAINTAIN" || !targetWeightDelta || targetWeightDelta <= 0) {
-    return { dailyCalorieTarget, weeks: null, goal };
+  targetWeightDelta?: number | null,
+  targetDurationMonths?: number | null
+): GoalPlan {
+  if (goal === "MAINTAIN") {
+    return {
+      dailyCalorieTarget: calculateCalorieTarget(tdee, "MAINTAIN"),
+      weeklyRateKg: 0,
+      weeks: null,
+      requestedWeeks: null,
+      wasAdjusted: false,
+      goal,
+    };
   }
-  const dailyDelta = Math.abs(dailyCalorieTarget - tdee);
-  const weeklyDelta = dailyDelta * 7;
-  const weeks = weeklyDelta > 0 ? Math.round((targetWeightDelta * KCAL_PER_KG) / weeklyDelta) : null;
-  return { dailyCalorieTarget, weeks, goal };
+
+  const hasDelta = !!targetWeightDelta && targetWeightDelta > 0;
+  const requestedWeeks =
+    hasDelta && targetDurationMonths && targetDurationMonths > 0 ? targetDurationMonths * WEEKS_PER_MONTH : null;
+  const requestedWeeklyRate = requestedWeeks ? targetWeightDelta! / requestedWeeks : null;
+
+  let dailyDelta: number;
+  let wasAdjusted = false;
+
+  if (requestedWeeklyRate != null) {
+    // Durée précise demandée : on vérifie que le rythme induit reste sûr.
+    let weeklyRateKg = requestedWeeklyRate;
+    if (weeklyRateKg > MAX_SAFE_KG_PER_WEEK) {
+      weeklyRateKg = MAX_SAFE_KG_PER_WEEK;
+      wasAdjusted = true;
+    }
+    dailyDelta = Math.round((weeklyRateKg * KCAL_PER_KG) / 7);
+  } else {
+    // Pas de durée précisée : rythme par défaut recommandé.
+    dailyDelta = DEFAULT_DAILY_DELTA[goal];
+  }
+
+  let dailyCalorieTarget = goal === "LOSE" ? tdee - dailyDelta : tdee + dailyDelta;
+
+  if (goal === "LOSE" && dailyCalorieTarget < MIN_SAFE_CALORIE_FLOOR) {
+    dailyCalorieTarget = MIN_SAFE_CALORIE_FLOOR;
+    dailyDelta = Math.max(tdee - MIN_SAFE_CALORIE_FLOOR, 0);
+    wasAdjusted = true;
+  }
+
+  const weeklyRateKg = Math.round(((dailyDelta * 7) / KCAL_PER_KG) * 100) / 100;
+  const weeks = hasDelta && weeklyRateKg > 0 ? Math.round(targetWeightDelta! / weeklyRateKg) : null;
+
+  return {
+    dailyCalorieTarget,
+    weeklyRateKg,
+    weeks,
+    requestedWeeks: requestedWeeks ? Math.round(requestedWeeks) : null,
+    wasAdjusted,
+    goal,
+  };
 }
 
 export interface MemberNutritionInput {

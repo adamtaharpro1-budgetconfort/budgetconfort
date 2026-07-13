@@ -35,6 +35,7 @@ interface Member {
   weight: number | null;
   goal: string | null;
   targetWeightDelta: number | null;
+  targetDurationMonths: number | null;
   hasAccount: boolean;
   accountEmail: string | null;
   role: string;
@@ -275,6 +276,7 @@ function MemberCard({ member, isSelf }: { member: Member; isSelf: boolean }) {
             tdee={calculateTDEE(calculateBMR(member.sex, member.weight, member.height, member.age), "MODERATE")}
             goal={member.goal as NutritionGoal}
             targetWeightDelta={member.targetWeightDelta}
+            targetDurationMonths={member.targetDurationMonths}
           />
         )}
         {isSelf && !member.goal && (
@@ -306,6 +308,9 @@ function MemberDialog({ existing }: { existing?: Member }) {
   const [targetWeightDelta, setTargetWeightDelta] = useState(
     existing?.targetWeightDelta != null ? String(existing.targetWeightDelta) : ""
   );
+  const [targetDurationMonths, setTargetDurationMonths] = useState(
+    existing?.targetDurationMonths != null ? String(existing.targetDurationMonths) : ""
+  );
 
   const previewTdee =
     sex && age && height && weight
@@ -325,6 +330,7 @@ function MemberDialog({ existing }: { existing?: Member }) {
       weight: weight ? Number(weight) : undefined,
       goal: isChild ? undefined : (goal as never),
       targetWeightDelta: goal === "MAINTAIN" ? null : targetWeightDelta ? Number(targetWeightDelta) : null,
+      targetDurationMonths: goal === "MAINTAIN" ? null : targetDurationMonths ? Number(targetDurationMonths) : null,
     };
     const result = existing ? await updateFamilyMember(existing.id, input) : await addFamilyMember(input);
     setLoading(false);
@@ -402,16 +408,29 @@ function MemberDialog({ existing }: { existing?: Member }) {
               </select>
               <p className="text-xs text-muted-foreground">Utilisé pour adapter ses portions dans les repas générés par l&apos;IA.</p>
               {goal !== "MAINTAIN" && (
-                <div className="space-y-2 pt-1">
-                  <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
-                  <Input
-                    type="number"
-                    min={0}
-                    step={0.5}
-                    placeholder="ex : 5"
-                    value={targetWeightDelta}
-                    onChange={(e) => setTargetWeightDelta(e.target.value)}
-                  />
+                <div className="grid grid-cols-2 gap-4 pt-1">
+                  <div className="space-y-2">
+                    <Label>Nombre de kg à {goal === "LOSE" ? "perdre" : "prendre"}</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      placeholder="ex : 5"
+                      value={targetWeightDelta}
+                      onChange={(e) => setTargetWeightDelta(e.target.value)}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>En combien de mois ? (optionnel)</Label>
+                    <Input
+                      type="number"
+                      min={0}
+                      step={0.5}
+                      placeholder="ex : 2"
+                      value={targetDurationMonths}
+                      onChange={(e) => setTargetDurationMonths(e.target.value)}
+                    />
+                  </div>
                 </div>
               )}
               {previewTdee && (
@@ -419,6 +438,7 @@ function MemberDialog({ existing }: { existing?: Member }) {
                   tdee={previewTdee}
                   goal={goal as NutritionGoal}
                   targetWeightDelta={goal === "MAINTAIN" ? null : Number(targetWeightDelta) || null}
+                  targetDurationMonths={goal === "MAINTAIN" ? null : Number(targetDurationMonths) || null}
                   className="mt-2"
                 />
               )}

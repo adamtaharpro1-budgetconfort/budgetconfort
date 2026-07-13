@@ -16,6 +16,7 @@ export interface FamilyMemberInput {
   activityLevel?: ActivityLevel;
   goal?: NutritionGoal;
   targetWeightDelta?: number | null;
+  targetDurationMonths?: number | null;
 }
 
 export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionResult> {
@@ -34,6 +35,7 @@ export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionR
       weight: input.weight,
       goal: input.isChild ? undefined : input.goal,
       targetWeightDelta: input.isChild || input.goal === "MAINTAIN" ? null : input.targetWeightDelta,
+      targetDurationMonths: input.isChild || input.goal === "MAINTAIN" ? null : input.targetDurationMonths,
     },
   });
 
@@ -59,6 +61,7 @@ export async function updateFamilyMember(id: string, input: FamilyMemberInput): 
       weight: input.weight,
       goal: input.isChild ? null : input.goal,
       targetWeightDelta: input.isChild || input.goal === "MAINTAIN" ? null : input.targetWeightDelta,
+      targetDurationMonths: input.isChild || input.goal === "MAINTAIN" ? null : input.targetDurationMonths,
     },
   });
 
