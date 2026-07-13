@@ -8,7 +8,12 @@ async function send(to: string, subject: string, html: string) {
     console.warn(`[email] RESEND_API_KEY absent — email non envoyé (${subject} -> ${to})`);
     return;
   }
-  await resend.emails.send({ from: FROM, to, subject, html });
+  const result = await resend.emails.send({ from: FROM, to, subject, html });
+  if (result.error) {
+    console.error(`[email] Resend a refusé l'envoi (${subject} -> ${to}):`, JSON.stringify(result.error));
+  } else {
+    console.log(`[email] Envoyé avec succès (${subject} -> ${to}), id=${result.data?.id}`);
+  }
 }
 
 export async function sendVerificationEmail(to: string, token: string) {
