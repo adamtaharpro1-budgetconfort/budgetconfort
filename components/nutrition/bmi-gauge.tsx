@@ -1,17 +1,24 @@
 import { BMI_ZONES, BMI_SCALE_MIN, BMI_SCALE_MAX, bmiToPercent, getBmiZone } from "@/lib/bmi";
-import { Badge } from "@/components/ui/badge";
+import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { cn } from "@/lib/utils";
+
+const ZONE_BADGE_VARIANT: Record<string, BadgeProps["variant"]> = {
+  maigreur: "info",
+  normal: "success",
+  surpoids: "warning",
+  "obesite-moderee": "secondary",
+  "obesite-severe": "destructive",
+};
 
 export function BmiGauge({ bmi }: { bmi: number }) {
   const zone = getBmiZone(bmi);
   const markerPercent = bmiToPercent(bmi);
-  const badgeVariant = zone.colorVar === "--success" ? "success" : zone.colorVar === "--destructive" ? "destructive" : "warning";
 
   return (
     <div>
       <div className="flex items-baseline justify-between">
         <p className="text-2xl font-semibold">{bmi.toFixed(1)}</p>
-        <Badge variant={badgeVariant}>{zone.label}</Badge>
+        <Badge variant={ZONE_BADGE_VARIANT[zone.key]}>{zone.label}</Badge>
       </div>
 
       <div className="relative mt-4 h-2.5 w-full overflow-hidden rounded-full">
@@ -34,14 +41,17 @@ export function BmiGauge({ bmi }: { bmi: number }) {
         />
       </div>
 
-      <div className="mt-2 flex justify-between text-[10px] text-muted-foreground">
-        {BMI_ZONES.map((z, i) => (
-          <span key={z.key} className={cn(i === 0 && "text-left", i === BMI_ZONES.length - 1 && "text-right")}>
-            {z.max === BMI_SCALE_MAX ? `${z.min}+` : z.min}
-          </span>
+      <div className="mt-3 grid grid-cols-5 gap-1 text-center">
+        {BMI_ZONES.map((z) => (
+          <div key={z.key} className={cn("text-[9px] font-medium leading-tight", zone.key === z.key && "font-bold")} style={{ color: `var(${z.colorVar})` }}>
+            {z.label}
+            <div className="text-[9px] font-normal text-muted-foreground">
+              {z.max === BMI_SCALE_MAX ? `>${z.min}` : z.key === "maigreur" ? `<${z.max}` : `${z.min}-${z.max}`}
+            </div>
+          </div>
         ))}
       </div>
-      <p className="mt-1 text-center text-[11px] text-muted-foreground">
+      <p className="mt-2 text-center text-[11px] text-muted-foreground">
         Repère indicatif (OMS) — ne remplace pas un avis médical.
       </p>
     </div>

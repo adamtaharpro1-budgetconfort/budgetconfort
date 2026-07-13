@@ -29,6 +29,7 @@
 
   --success: #16a34a;
   --warning: #eab308;
+  --info: #38bdf8;
 
   --radius: 0.9rem;
 }
@@ -61,6 +62,7 @@
 
   --success: #22c393;
   --warning: #f2c14e;
+  --info: #5fc9f8;
 }
 
 @theme inline {
@@ -83,6 +85,7 @@
   --color-destructive-foreground: var(--destructive-foreground);
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-info: var(--info);
   --radius-lg: var(--radius);
   --radius-md: calc(var(--radius) - 4px);
   --radius-sm: calc(var(--radius) - 6px);

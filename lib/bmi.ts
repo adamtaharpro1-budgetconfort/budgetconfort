@@ -6,22 +6,24 @@ export interface BmiZone {
   colorVar: string; // CSS variable name, no var()
 }
 
-// Échelle affichée : 15 à 40 (au-delà, la position est simplement plafonnée).
+// Échelle affichée : 15 à 45 (au-delà, la position est simplement plafonnée).
 export const BMI_SCALE_MIN = 15;
-export const BMI_SCALE_MAX = 40;
+export const BMI_SCALE_MAX = 45;
 
 export const BMI_ZONES: BmiZone[] = [
-  { key: "insuffisance", label: "Insuffisance pondérale", min: 15, max: 18.5, colorVar: "--warning" },
-  { key: "normal", label: "Poids normal", min: 18.5, max: 25, colorVar: "--success" },
+  { key: "maigreur", label: "Maigreur", min: 15, max: 18.5, colorVar: "--info" },
+  { key: "normal", label: "Normal", min: 18.5, max: 25, colorVar: "--success" },
   { key: "surpoids", label: "Surpoids", min: 25, max: 30, colorVar: "--warning" },
-  { key: "obesite", label: "Obésité", min: 30, max: 40, colorVar: "--destructive" },
+  { key: "obesite-moderee", label: "Obésité modérée", min: 30, max: 40, colorVar: "--secondary" },
+  { key: "obesite-severe", label: "Obésité Sévère", min: 40, max: 45, colorVar: "--destructive" },
 ];
 
 export function getBmiZone(bmi: number): BmiZone {
   if (bmi < 18.5) return BMI_ZONES[0];
   if (bmi < 25) return BMI_ZONES[1];
   if (bmi < 30) return BMI_ZONES[2];
-  return BMI_ZONES[3];
+  if (bmi < 40) return BMI_ZONES[3];
+  return BMI_ZONES[4];
 }
 
 export function bmiToPercent(bmi: number) {
