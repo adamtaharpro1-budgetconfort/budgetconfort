@@ -1,11 +1,24 @@
 "use server";
 
 import { randomBytes } from "crypto";
+import { z } from "zod";
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { auth } from "@/lib/auth";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
+import { hashPassword } from "@/lib/password";
 import type { ActionResult } from "@/lib/actions/auth";
+
+const inviteSignUpSchema = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(8, "8 caractères minimum"),
+    confirmPassword: z.string(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Les mots de passe ne correspondent pas",
+    path: ["confirmPassword"],
+  });
 
 export async function createFamilyInvite(input: { label?: string; isChild: boolean }): Promise<
   ActionResult & { url?: string }
@@ -56,6 +69,52 @@ export async function getInviteByToken(token: string) {
   });
   if (!invite || invite.status !== "PENDING" || invite.expiresAt < new Date()) return null;
   return invite;
+}
+
+export async function signUpViaInvite(
+  token: string,
+  input: { email: string; password: string; confirmPassword: string }
+): Promise<ActionResult> {
+  const invite = await prisma.householdInvite.findUnique({ where: { token } });
+  if (!invite || invite.status !== "PENDING") return { ok: false, error: "Invitation invalide ou déjà utilisée" };
+  if (invite.expiresAt < new Date()) return { ok: false, error: "Cette invitation a expiré" };
+
+  const parsed = inviteSignUpSchema.safeParse(input);
+  if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Données invalides" };
+  const { email, password } = parsed.data;
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+  if (existing) {
+    return { ok: false, error: "Un compte existe déjà avec cet email — connecte-toi plutôt." };
+  }
+
+  const passwordHash = await hashPassword(password);
+
+  await prisma.$transaction(async (tx) => {
+    const user = await tx.user.create({
+      data: {
+        email,
+        passwordHash,
+        firstName: invite.label ?? undefined,
+        // L'invitation famille vaut confirmation : pas besoin de vérification email
+        // (indisponible tant qu'aucun domaine n'est vérifié sur Resend).
+        emailVerified: new Date(),
+        onboardingDone: true,
+      },
+    });
+    await tx.householdMember.create({
+      data: {
+        householdId: invite.householdId,
+        userId: user.id,
+        role: invite.isChild ? "CHILD" : "MEMBER",
+        label: invite.label,
+        isChild: invite.isChild,
+      },
+    });
+    await tx.householdInvite.update({ where: { id: invite.id }, data: { status: "ACCEPTED" } });
+  });
+
+  return { ok: true };
 }
 
 export async function acceptInvite(token: string): Promise<ActionResult> {
