@@ -11,7 +11,7 @@ import type { MealType } from "@prisma/client";
 
 const recipeSchema = z.object({
   name: z.string(),
-  cuisine: z.string().optional(),
+  cuisine: z.string().nullable(),
   prepTime: z.number().int().min(1).max(240),
   difficulty: z.enum(["FACILE", "MOYEN", "DIFFICILE"]),
   calories: z.number().int().min(50).max(3000),
@@ -20,7 +20,7 @@ const recipeSchema = z.object({
   carbs: z.number().min(0),
   fats: z.number().min(0),
   servings: z.number().int().min(1).max(12),
-  ingredients: z.array(z.object({ name: z.string(), quantity: z.number().optional(), unit: z.string().optional() })),
+  ingredients: z.array(z.object({ name: z.string(), quantity: z.number().nullable(), unit: z.string().nullable() })),
   steps: z.array(z.string()).min(1),
 });
 

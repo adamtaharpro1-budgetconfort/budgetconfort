@@ -15,15 +15,15 @@ const fridgeSchema = z.object({
       name: z.string(),
       estimatedQuantity: z.string(),
       category: z.string(),
-      estimatedDaysUntilExpiry: z.number().int().min(0).max(365).optional(),
+      estimatedDaysUntilExpiry: z.number().int().min(0).max(365).nullable(),
     })
   ),
   recipeIdeas: z.array(z.string()).max(3),
 });
 
 const receiptSchema = z.object({
-  store: z.string().optional(),
-  date: z.string().optional(),
+  store: z.string().nullable(),
+  date: z.string().nullable(),
   total: z.number(),
   items: z.array(z.object({ name: z.string(), price: z.number() })),
 });
