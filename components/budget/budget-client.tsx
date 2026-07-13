@@ -233,10 +233,12 @@ function AddFixedExpenseDialog() {
     setLoading(true);
     const form = new FormData(e.currentTarget);
     try {
+      const dueDayValue = form.get("dueDay") as string;
       await addFixedExpense({
         label: form.get("label") as string,
         amount: Number(form.get("amount")),
         category: form.get("category") as never,
+        dueDay: dueDayValue ? Number(dueDayValue) : undefined,
       });
       setOpen(false);
       toast.success("Charge ajoutée");
@@ -262,6 +264,10 @@ function AddFixedExpenseDialog() {
           <div className="space-y-2">
             <Label>Montant</Label>
             <Input name="amount" type="number" step="0.01" required />
+          </div>
+          <div className="space-y-2">
+            <Label>Jour de paiement (1-31, optionnel)</Label>
+            <Input name="dueDay" type="number" min={1} max={31} placeholder="Ex: 5" />
           </div>
           <div className="space-y-2">
             <Label>Catégorie</Label>

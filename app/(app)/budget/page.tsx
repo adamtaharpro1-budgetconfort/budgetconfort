@@ -29,7 +29,12 @@ export default async function BudgetPage() {
         currency={household.currency}
         budget={budget}
         incomes={incomes.map((i) => ({ id: i.id, label: i.label, amount: i.amount, meta: i.type }))}
-        fixedExpenses={fixedExpenses.map((f) => ({ id: f.id, label: f.label, amount: f.amount, meta: f.category }))}
+        fixedExpenses={fixedExpenses.map((f) => ({
+          id: f.id,
+          label: f.label,
+          amount: f.amount,
+          meta: f.dueDay ? `${f.category} · à payer le ${f.dueDay}` : f.category,
+        }))}
         transactions={transactions.map((t) => ({ id: t.id, label: t.label, amount: t.amount, meta: t.category }))}
       />
     </div>
