@@ -43,18 +43,25 @@ function FridgeScanner() {
     setPreview(URL.createObjectURL(file));
     setLoading(true);
     setResultText(null);
-    const formData = new FormData();
-    formData.set("image", file);
-    const result = await scanFridge(formData);
-    if (!result.ok) {
-      setLoading(false);
-      toast.error(result.error);
-      return;
+    let success = false;
+    try {
+      const formData = new FormData();
+      formData.set("image", file);
+      const result = await scanFridge(formData);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setProgress(100);
+      setResultText(`${result.itemCount} produit(s) détecté(s) et ajouté(s) à ton stock.`);
+      setRecipeIdeas(result.recipeIdeas ?? []);
+      success = true;
+    } catch {
+      toast.error("L'analyse a échoué. Réessaie.");
+    } finally {
+      if (success) setTimeout(() => setLoading(false), 400);
+      else setLoading(false);
     }
-    setProgress(100);
-    setResultText(`${result.itemCount} produit(s) détecté(s) et ajouté(s) à ton stock.`);
-    setRecipeIdeas(result.recipeIdeas ?? []);
-    setTimeout(() => setLoading(false), 400);
   }
 
   return (
@@ -115,19 +122,26 @@ function ReceiptScanner() {
     setPreview(URL.createObjectURL(file));
     setLoading(true);
     setResultText(null);
-    const formData = new FormData();
-    formData.set("image", file);
-    const result = await scanReceipt(formData);
-    if (!result.ok) {
-      setLoading(false);
-      toast.error(result.error);
-      return;
+    let success = false;
+    try {
+      const formData = new FormData();
+      formData.set("image", file);
+      const result = await scanReceipt(formData);
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setProgress(100);
+      setResultText(
+        `Ticket analysé : ${formatCurrency(result.total ?? 0)} ajoutés au budget, ${result.itemCount} produit(s) ajoutés au stock.`
+      );
+      success = true;
+    } catch {
+      toast.error("L'analyse a échoué. Réessaie.");
+    } finally {
+      if (success) setTimeout(() => setLoading(false), 400);
+      else setLoading(false);
     }
-    setProgress(100);
-    setResultText(
-      `Ticket analysé : ${formatCurrency(result.total ?? 0)} ajoutés au budget, ${result.itemCount} produit(s) ajoutés au stock.`
-    );
-    setTimeout(() => setLoading(false), 400);
   }
 
   return (
