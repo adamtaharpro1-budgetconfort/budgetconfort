@@ -16,7 +16,7 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Sparkles, Trash2, Heart, Clock, Flame, Users, ChefHat, RefreshCw } from "lucide-react";
+import { Sparkles, Trash2, Heart, Clock, Flame, Users, ChefHat, RefreshCw, Pencil, Plus } from "lucide-react";
 import {
   generateAiMealPlan,
   removeMealPlanEntry,
@@ -24,7 +24,9 @@ import {
   regenerateMealSlot,
   regenerateDayMeals,
   clearAllMeals,
+  saveManualMeal,
 } from "@/lib/actions/meals";
+import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
 import { useFakeProgress } from "@/lib/hooks/use-fake-progress";
@@ -109,9 +111,24 @@ export function MealsClient({
                   <div key={mt.value} className="rounded-md border border-border p-2">
                     <p className="text-[11px] font-medium uppercase text-muted-foreground">{mt.label}</p>
                     {entry?.recipe ? (
-                      <MealSlot entry={entry} currency={currency} onOpen={() => setOpenRecipe({ recipe: entry.recipe!, portions: entry.portions })} />
+                      <MealSlot
+                        entry={entry}
+                        date={day.date}
+                        currency={currency}
+                        defaultServings={defaultServings}
+                        onOpen={() => setOpenRecipe({ recipe: entry.recipe!, portions: entry.portions })}
+                      />
                     ) : (
-                      <p className="mt-1 text-xs text-muted-foreground/70">Vide</p>
+                      <ManualMealDialog
+                        date={day.date}
+                        mealType={mt.value}
+                        defaultServings={defaultServings}
+                        trigger={
+                          <button type="button" className="mt-1 flex items-center gap-1 text-xs text-muted-foreground hover:text-primary">
+                            <Plus className="h-3 w-3" /> Ajouter manuellement
+                          </button>
+                        }
+                      />
                     )}
                   </div>
                 );
@@ -144,7 +161,19 @@ export function MealsClient({
   );
 }
 
-function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: string; onOpen: () => void }) {
+function MealSlot({
+  entry,
+  date,
+  currency,
+  defaultServings,
+  onOpen,
+}: {
+  entry: DayEntry;
+  date: string;
+  currency: string;
+  defaultServings: number;
+  onOpen: () => void;
+}) {
   const [isPending, startTransition] = useTransition();
   const [isRegenerating, startRegenerate] = useTransition();
   if (!entry.recipe) return null;
@@ -189,6 +218,17 @@ function MealSlot({ entry, currency, onOpen }: { entry: DayEntry; currency: stri
         )}
       </button>
       <div className="flex shrink-0 items-center gap-1.5">
+        <ManualMealDialog
+          date={date}
+          mealType={entry.mealType}
+          defaultServings={defaultServings}
+          entry={entry}
+          trigger={
+            <button disabled={isPending || isRegenerating} title="Modifier manuellement" className="text-muted-foreground hover:text-foreground">
+              <Pencil className="h-3.5 w-3.5" />
+            </button>
+          }
+        />
         <button
           disabled={isPending || isRegenerating}
           onClick={handleRegenerate}
@@ -251,6 +291,122 @@ function ClearAllMealsButton() {
     <Button variant="outline" onClick={handleClick} disabled={isPending}>
       <Trash2 className="h-4 w-4" /> {isPending ? "..." : "Tout supprimer"}
     </Button>
+  );
+}
+
+function ManualMealDialog({
+  date,
+  mealType,
+  defaultServings,
+  entry,
+  trigger,
+}: {
+  date: string;
+  mealType: string;
+  defaultServings: number;
+  entry?: DayEntry;
+  trigger: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [name, setName] = useState(entry?.recipe?.name ?? "");
+  const [calories, setCalories] = useState(entry?.recipe?.calories ? String(entry.recipe.calories) : "");
+  const [grams, setGrams] = useState("");
+  const [proteins, setProteins] = useState(entry?.recipe?.proteins != null ? String(entry.recipe.proteins) : "");
+  const [carbs, setCarbs] = useState(entry?.recipe?.carbs != null ? String(entry.recipe.carbs) : "");
+  const [fats, setFats] = useState(entry?.recipe?.fats != null ? String(entry.recipe.fats) : "");
+  const [prepTime, setPrepTime] = useState(entry?.recipe?.prepTime ? String(entry.recipe.prepTime) : "");
+  const [ingredientsText, setIngredientsText] = useState(
+    entry?.recipe?.ingredients?.map((i) => i.name).join(", ") ?? ""
+  );
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!name.trim() || !calories) {
+      toast.error("Indique au moins un nom et des calories");
+      return;
+    }
+    setLoading(true);
+    const result = await saveManualMeal({
+      entryId: entry?.id,
+      date: new Date(date),
+      mealType: mealType as never,
+      servings: defaultServings,
+      name: name.trim(),
+      calories: Number(calories),
+      servingWeightGrams: grams ? Number(grams) : 300,
+      proteins: proteins ? Number(proteins) : undefined,
+      carbs: carbs ? Number(carbs) : undefined,
+      fats: fats ? Number(fats) : undefined,
+      prepTime: prepTime ? Number(prepTime) : undefined,
+      ingredients: ingredientsText
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((n) => ({ name: n, quantity: null, unit: null })),
+    });
+    setLoading(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    setOpen(false);
+    toast.success("Repas enregistré, portions recalculées selon les objectifs de chacun");
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>{entry ? "Modifier ce repas manuellement" : "Ajouter un repas manuellement"}</DialogTitle>
+          <DialogDescription>
+            Les portions de chaque membre seront recalculées automatiquement selon son objectif nutritionnel.
+          </DialogDescription>
+        </DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Nom du plat</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Poulet rôti et riz" required />
+          </div>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Calories (portion standard)</Label>
+              <Input type="number" value={calories} onChange={(e) => setCalories(e.target.value)} placeholder="Ex: 600" required />
+            </div>
+            <div className="space-y-2">
+              <Label>Poids en g (portion standard)</Label>
+              <Input type="number" value={grams} onChange={(e) => setGrams(e.target.value)} placeholder="Ex: 350" />
+            </div>
+          </div>
+          <div className="grid grid-cols-3 gap-4">
+            <div className="space-y-2">
+              <Label>Protéines (g)</Label>
+              <Input type="number" value={proteins} onChange={(e) => setProteins(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Glucides (g)</Label>
+              <Input type="number" value={carbs} onChange={(e) => setCarbs(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Lipides (g)</Label>
+              <Input type="number" value={fats} onChange={(e) => setFats(e.target.value)} />
+            </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Temps de préparation (min, optionnel)</Label>
+            <Input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} />
+          </div>
+          <div className="space-y-2">
+            <Label>Ingrédients (séparés par des virgules, optionnel)</Label>
+            <Textarea value={ingredientsText} onChange={(e) => setIngredientsText(e.target.value)} placeholder="Ex: poulet, riz, poivrons" />
+          </div>
+          <DialogFooter>
+            <Button type="submit" disabled={loading}>{loading ? "..." : "Enregistrer"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -392,6 +548,7 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
   const [servings, setServings] = useState(defaultServings);
   const [budget, setBudget] = useState("");
   const [cuisine, setCuisine] = useState("");
+  const [preferredIngredients, setPreferredIngredients] = useState("");
   const [selectedMeals, setSelectedMeals] = useState<string[]>(["LUNCH", "DINNER"]);
 
   function toggleMeal(v: string) {
@@ -414,6 +571,7 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
       servings,
       budgetTotal: budget ? Number(budget) : undefined,
       cuisine: cuisine || undefined,
+      preferredIngredients: preferredIngredients || undefined,
     });
 
     if (!result.ok) {
@@ -472,6 +630,16 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
               <Label>Cuisine (optionnel)</Label>
               <Input value={cuisine} onChange={(e) => setCuisine(e.target.value)} placeholder="Ex: italienne" disabled={loading} />
             </div>
+          </div>
+          <div className="space-y-2">
+            <Label>Ingrédients que vous aimez / voulez utiliser cette semaine (optionnel)</Label>
+            <Textarea
+              value={preferredIngredients}
+              onChange={(e) => setPreferredIngredients(e.target.value)}
+              placeholder="Ex: poulet, saumon, brocolis, riz, tomates..."
+              disabled={loading}
+            />
+            <p className="text-xs text-muted-foreground">L&apos;IA construira les recettes de la semaine autour de ces ingrédients autant que possible.</p>
           </div>
         </div>
 

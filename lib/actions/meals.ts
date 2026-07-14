@@ -149,6 +149,7 @@ export interface GenerateMealPlanInput {
   servings: number;
   cuisine?: string;
   startDate?: Date;
+  preferredIngredients?: string;
 }
 
 export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<ActionResult & { adviceMessage?: string }> {
@@ -169,6 +170,7 @@ Contraintes :
 - Préférences alimentaires : ${ctx.nutritionProfile?.preferences?.join(", ") || "aucune"}
 - Cuisine souhaitée : ${input.cuisine || "variée"}
 - Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${ctx.pantryNames}
+${input.preferredIngredients ? `- Ingrédients que la famille aime et veut manger cette semaine (construis les recettes AUTOUR de ces ingrédients autant que possible, répartis-les intelligemment sur les différents repas plutôt que de tous les mettre dans une seule recette) : ${input.preferredIngredients}` : ""}
 
 Pour chaque recette, donne un nom, le temps de préparation, la difficulté, les calories d'UNE portion standard, le poids en grammes d'UNE portion standard (servingWeightGrams), un prix estimé en euros, les macronutriments (protéines/glucides/lipides en grammes), les ingrédients avec quantités pour l'ensemble des convives, et les étapes de préparation numérotées. Termine par un court message de conseil personnalisé (adviceMessage) sur ce menu.`;
 
@@ -277,6 +279,77 @@ export async function clearAllMeals() {
   await prisma.mealPlanEntry.deleteMany({ where: { householdId, date: { gte: start, lt: end } } });
   revalidatePath("/repas");
   revalidatePath("/dashboard");
+}
+
+export interface ManualMealInput {
+  entryId?: string; // si renseigné, remplace le repas existant plutôt que d'en créer un nouveau
+  date: Date;
+  mealType: MealType;
+  servings: number;
+  name: string;
+  calories: number;
+  servingWeightGrams: number;
+  proteins?: number;
+  carbs?: number;
+  fats?: number;
+  prepTime?: number;
+  priceEstimate?: number;
+  ingredients: { name: string; quantity: number | null; unit: string | null }[];
+}
+
+/**
+ * Enregistre un repas saisi manuellement (pas de génération IA) et recalcule aussitôt les portions
+ * individuelles de chaque membre selon son objectif nutritionnel — même logique que pour un repas
+ * généré par l'IA, pour que le repas reste cohérent avec le reste du plan.
+ */
+export async function saveManualMeal(input: ManualMealInput): Promise<ActionResult> {
+  const { userId, householdId } = await requireSessionHousehold();
+  const ctx = await buildMealPlanContext(userId, householdId, input.servings);
+
+  const entryId = await prisma.$transaction(async (tx) => {
+    const recipe = await tx.recipe.create({
+      data: {
+        name: input.name,
+        prepTime: input.prepTime ?? 20,
+        difficulty: "FACILE",
+        calories: input.calories,
+        servingWeightGrams: input.servingWeightGrams,
+        priceEstimate: input.priceEstimate ?? 0,
+        proteins: input.proteins ?? 0,
+        carbs: input.carbs ?? 0,
+        fats: input.fats ?? 0,
+        servings: input.servings,
+        steps: [],
+        isAiGenerated: false,
+        ingredients: input.ingredients.length > 0 ? { create: input.ingredients } : undefined,
+      },
+    });
+
+    let id = input.entryId;
+    if (id) {
+      await tx.mealPlanEntry.updateMany({
+        where: { id, householdId },
+        data: { recipeId: recipe.id, servings: input.servings },
+      });
+      await tx.mealPortion.deleteMany({ where: { mealPlanEntryId: id } });
+    } else {
+      const entry = await tx.mealPlanEntry.create({
+        data: { householdId, date: input.date, mealType: input.mealType, recipeId: recipe.id, servings: input.servings },
+      });
+      id = entry.id;
+    }
+
+    const portionsData = buildPortionsData(id, input.mealType, input.calories, input.servingWeightGrams, ctx.memberProfiles, 1);
+    if (portionsData.length > 0) {
+      await tx.mealPortion.createMany({ data: portionsData });
+    }
+
+    return id;
+  });
+
+  revalidatePath("/repas");
+  revalidatePath("/dashboard");
+  return { ok: true };
 }
 
 export async function assignRecipeToSlot(input: { date: Date; mealType: MealType; recipeId: string; servings: number }) {
