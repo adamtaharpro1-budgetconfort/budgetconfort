@@ -69,6 +69,16 @@ export async function deleteShoppingItem(id: string) {
   revalidatePath("/dashboard");
 }
 
+export async function clearShoppingList() {
+  const { householdId } = await requireSessionHousehold();
+  const list = await prisma.shoppingList.findFirst({ where: { householdId, status: "ACTIVE" } });
+  if (list) {
+    await prisma.shoppingListItem.deleteMany({ where: { listId: list.id } });
+  }
+  revalidatePath("/courses");
+  revalidatePath("/dashboard");
+}
+
 export async function generateShoppingListFromMealPlan() {
   const { householdId } = await requireSessionHousehold();
   const now = new Date();

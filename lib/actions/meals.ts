@@ -266,6 +266,19 @@ export async function removeMealPlanEntry(id: string) {
   revalidatePath("/dashboard");
 }
 
+/** Supprime tous les repas planifiés (la semaine affichée sur /repas). */
+export async function clearAllMeals() {
+  const { householdId } = await requireSessionHousehold();
+  const now = new Date();
+  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const end = new Date(start);
+  end.setDate(end.getDate() + 7);
+
+  await prisma.mealPlanEntry.deleteMany({ where: { householdId, date: { gte: start, lt: end } } });
+  revalidatePath("/repas");
+  revalidatePath("/dashboard");
+}
+
 export async function assignRecipeToSlot(input: { date: Date; mealType: MealType; recipeId: string; servings: number }) {
   const { householdId } = await requireSessionHousehold();
   await prisma.mealPlanEntry.create({

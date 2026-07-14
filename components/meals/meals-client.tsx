@@ -23,6 +23,7 @@ import {
   toggleFavoriteRecipe,
   regenerateMealSlot,
   regenerateDayMeals,
+  clearAllMeals,
 } from "@/lib/actions/meals";
 import { toast } from "sonner";
 import { Progress } from "@/components/ui/progress";
@@ -85,10 +86,12 @@ export function MealsClient({
   defaultServings: number;
 }) {
   const [openRecipe, setOpenRecipe] = useState<{ recipe: RecipeInfo; portions: MemberPortion[] } | null>(null);
+  const hasMeals = days.some((d) => d.entries.some((e) => e.recipe));
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-end">
+      <div className="flex justify-end gap-2">
+        {hasMeals && <ClearAllMealsButton />}
         <GenerateMealPlanDialog defaultServings={defaultServings} />
       </div>
 
@@ -230,6 +233,24 @@ function RegenerateDayButton({ date }: { date: string }) {
       <RefreshCw className={cn("h-3.5 w-3.5", isPending && "animate-spin")} />
       {isPending ? "..." : "Régénérer"}
     </button>
+  );
+}
+
+function ClearAllMealsButton() {
+  const [isPending, startTransition] = useTransition();
+
+  function handleClick() {
+    if (!window.confirm("Supprimer tous les repas planifiés cette semaine ? Cette action est irréversible.")) return;
+    startTransition(async () => {
+      await clearAllMeals();
+      toast.success("Tous les repas ont été supprimés");
+    });
+  }
+
+  return (
+    <Button variant="outline" onClick={handleClick} disabled={isPending}>
+      <Trash2 className="h-4 w-4" /> {isPending ? "..." : "Tout supprimer"}
+    </Button>
   );
 }
 

@@ -13,6 +13,7 @@ import {
   deleteShoppingItem,
   generateShoppingListFromMealPlan,
   recategorizeShoppingList,
+  clearShoppingList,
 } from "@/lib/actions/shopping";
 import { SHOPPING_AISLES } from "@/lib/shopping-aisles";
 import { cn } from "@/lib/utils";
@@ -33,6 +34,7 @@ export function ShoppingClient({ items }: { items: Item[] }) {
   const [isPending, startTransition] = useTransition();
   const [generating, setGenerating] = useState(false);
   const [recategorizing, setRecategorizing] = useState(false);
+  const [clearing, setClearing] = useState(false);
   const [name, setName] = useState("");
   const [category, setCategory] = useState<string>("Autre");
   const [filter, setFilter] = useState<string>("Tout");
@@ -56,6 +58,14 @@ export function ShoppingClient({ items }: { items: Item[] }) {
     const result = await recategorizeShoppingList();
     setRecategorizing(false);
     toast.success(result.count > 0 ? `${result.count} article(s) reclassé(s)` : "Tous les articles sont déjà bien classés");
+  }
+
+  async function handleClear() {
+    if (!window.confirm("Vider toute la liste de courses ? Cette action est irréversible.")) return;
+    setClearing(true);
+    await clearShoppingList();
+    setClearing(false);
+    toast.success("Liste vidée");
   }
 
   const unchecked = items.filter((i) => !i.checked);
@@ -87,6 +97,11 @@ export function ShoppingClient({ items }: { items: Item[] }) {
         <Button variant="outline" onClick={handleRecategorize} disabled={recategorizing} title="Revérifier le rayon de chaque article">
           <SlidersHorizontal className="h-4 w-4" /> {recategorizing ? "..." : "Recatégoriser"}
         </Button>
+        {items.length > 0 && (
+          <Button variant="outline" onClick={handleClear} disabled={clearing}>
+            <Trash2 className="h-4 w-4" /> {clearing ? "..." : "Vider la liste"}
+          </Button>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
