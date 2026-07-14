@@ -311,17 +311,18 @@ export async function estimateManualMealNutrition(input: {
   ingredients: string[];
   servings: number;
 }): Promise<ActionResult & { estimate?: z.infer<typeof manualMealEstimateSchema> }> {
-  await requireSessionHousehold();
-  if (!input.name.trim()) return { ok: false, error: "Indique d'abord un nom de plat." };
+  try {
+    await requireSessionHousehold();
+    if (!input.name.trim()) return { ok: false, error: "Indique d'abord un nom de plat." };
 
-  const prompt = `Tu es chef cuisinier et nutritionniste. Construis la recette complète du plat suivant, prévu pour ${input.servings} personne(s) au total.
+    const prompt = `Tu es chef cuisinier et nutritionniste. Construis la recette complète du plat suivant, prévu pour ${input.servings} personne(s) au total.
 
 Plat : ${input.name}
 ${
-    input.ingredients.length > 0
-      ? `Ingrédients demandés par l'utilisateur (utilise EXACTEMENT ceux-ci, sans en retirer ; tu peux seulement ajouter des ingrédients de base indispensables comme sel/poivre/huile si besoin) : ${input.ingredients.join(", ")}`
-      : "Aucun ingrédient précisé : choisis toi-même des ingrédients cohérents avec le nom du plat."
-  }
+      input.ingredients.length > 0
+        ? `Ingrédients demandés par l'utilisateur (utilise EXACTEMENT ceux-ci, sans en retirer ; tu peux seulement ajouter des ingrédients de base indispensables comme sel/poivre/huile si besoin) : ${input.ingredients.join(", ")}`
+        : "Aucun ingrédient précisé : choisis toi-même des ingrédients cohérents avec le nom du plat."
+    }
 
 Donne :
 - la liste complète des ingrédients avec une quantité et une unité réalistes pour ${input.servings} personne(s) (ex: 400 g, 2 pièces, 1 c. à soupe)
@@ -330,12 +331,11 @@ Donne :
 - un temps de préparation raisonnable en minutes
 - un prix estimé en euros pour l'ensemble du plat (tous les convives)`;
 
-  try {
     const result = await generateObject({ model: AI_MODEL, schema: manualMealEstimateSchema, prompt });
     return { ok: true, estimate: result.object };
   } catch (error) {
     console.error("[estimateManualMealNutrition] failed:", error);
-    return { ok: false, error: "L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même." };
+    return { ok: false, error: "L'estimation IA a échoué (ex: trop de demandes en peu de temps). Réessaie dans quelques instants ou saisis les valeurs toi-même." };
   }
 }
 
@@ -362,53 +362,58 @@ export interface ManualMealInput {
  * généré par l'IA, pour que le repas reste cohérent avec le reste du plan.
  */
 export async function saveManualMeal(input: ManualMealInput): Promise<ActionResult> {
-  const { userId, householdId } = await requireSessionHousehold();
-  const ctx = await buildMealPlanContext(userId, householdId, input.servings);
+  try {
+    const { userId, householdId } = await requireSessionHousehold();
+    const ctx = await buildMealPlanContext(userId, householdId, input.servings);
 
-  const entryId = await prisma.$transaction(async (tx) => {
-    const recipe = await tx.recipe.create({
-      data: {
-        name: input.name,
-        prepTime: input.prepTime ?? 20,
-        difficulty: "FACILE",
-        calories: input.calories,
-        servingWeightGrams: input.servingWeightGrams,
-        priceEstimate: input.priceEstimate ?? 0,
-        proteins: input.proteins ?? 0,
-        carbs: input.carbs ?? 0,
-        fats: input.fats ?? 0,
-        servings: input.servings,
-        steps: input.steps ?? [],
-        isAiGenerated: false,
-        ingredients: input.ingredients.length > 0 ? { create: input.ingredients } : undefined,
-      },
+    await prisma.$transaction(async (tx) => {
+      const recipe = await tx.recipe.create({
+        data: {
+          name: input.name,
+          prepTime: input.prepTime ?? 20,
+          difficulty: "FACILE",
+          calories: input.calories,
+          servingWeightGrams: input.servingWeightGrams,
+          priceEstimate: input.priceEstimate ?? 0,
+          proteins: input.proteins ?? 0,
+          carbs: input.carbs ?? 0,
+          fats: input.fats ?? 0,
+          servings: input.servings,
+          steps: input.steps ?? [],
+          isAiGenerated: false,
+          ingredients: input.ingredients.length > 0 ? { create: input.ingredients } : undefined,
+        },
+      });
+
+      let id = input.entryId;
+      if (id) {
+        await tx.mealPlanEntry.updateMany({
+          where: { id, householdId },
+          data: { recipeId: recipe.id, servings: input.servings },
+        });
+        await tx.mealPortion.deleteMany({ where: { mealPlanEntryId: id } });
+      } else {
+        const entry = await tx.mealPlanEntry.create({
+          data: { householdId, date: input.date, mealType: input.mealType, recipeId: recipe.id, servings: input.servings },
+        });
+        id = entry.id;
+      }
+
+      const portionsData = buildPortionsData(id, input.mealType, input.calories, input.servingWeightGrams, ctx.memberProfiles, 1);
+      if (portionsData.length > 0) {
+        await tx.mealPortion.createMany({ data: portionsData });
+      }
+
+      return id;
     });
 
-    let id = input.entryId;
-    if (id) {
-      await tx.mealPlanEntry.updateMany({
-        where: { id, householdId },
-        data: { recipeId: recipe.id, servings: input.servings },
-      });
-      await tx.mealPortion.deleteMany({ where: { mealPlanEntryId: id } });
-    } else {
-      const entry = await tx.mealPlanEntry.create({
-        data: { householdId, date: input.date, mealType: input.mealType, recipeId: recipe.id, servings: input.servings },
-      });
-      id = entry.id;
-    }
-
-    const portionsData = buildPortionsData(id, input.mealType, input.calories, input.servingWeightGrams, ctx.memberProfiles, 1);
-    if (portionsData.length > 0) {
-      await tx.mealPortion.createMany({ data: portionsData });
-    }
-
-    return id;
-  });
-
-  revalidatePath("/repas");
-  revalidatePath("/dashboard");
-  return { ok: true };
+    revalidatePath("/repas");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    console.error("[saveManualMeal] failed:", error);
+    return { ok: false, error: "L'enregistrement du repas a échoué. Réessaie." };
+  }
 }
 
 export async function assignRecipeToSlot(input: { date: Date; mealType: MealType; recipeId: string; servings: number }) {

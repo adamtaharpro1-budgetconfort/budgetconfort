@@ -340,32 +340,37 @@ function ManualMealDialog({
       return;
     }
     setEstimating(true);
-    const result = await estimateManualMealNutrition({
-      name: name.trim(),
-      ingredients: ingredientsText.split(",").map((s) => s.trim()).filter(Boolean),
-      servings: defaultServings,
-    });
-    setEstimating(false);
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
-    }
-    if (!result.estimate) {
+    try {
+      const result = await estimateManualMealNutrition({
+        name: name.trim(),
+        ingredients: ingredientsText.split(",").map((s) => s.trim()).filter(Boolean),
+        servings: defaultServings,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      if (!result.estimate) {
+        toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
+        return;
+      }
+      setCalories(String(result.estimate.calories));
+      setGrams(String(result.estimate.servingWeightGrams));
+      setProteins(String(result.estimate.proteins));
+      setCarbs(String(result.estimate.carbs));
+      setFats(String(result.estimate.fats));
+      setPrepTime(String(result.estimate.prepTime));
+      setPrice(String(result.estimate.priceEstimate));
+      setAiIngredients(result.estimate.ingredients);
+      setAiSteps(result.estimate.steps);
+      setIngredientsText(result.estimate.ingredients.map((i) => i.name).join(", "));
+      setEstimated(true);
+      toast.success("Recette générée : ingrédients, étapes, calories et prix estimés — modifiables si besoin");
+    } catch {
       toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
-      return;
+    } finally {
+      setEstimating(false);
     }
-    setCalories(String(result.estimate.calories));
-    setGrams(String(result.estimate.servingWeightGrams));
-    setProteins(String(result.estimate.proteins));
-    setCarbs(String(result.estimate.carbs));
-    setFats(String(result.estimate.fats));
-    setPrepTime(String(result.estimate.prepTime));
-    setPrice(String(result.estimate.priceEstimate));
-    setAiIngredients(result.estimate.ingredients);
-    setAiSteps(result.estimate.steps);
-    setIngredientsText(result.estimate.ingredients.map((i) => i.name).join(", "));
-    setEstimated(true);
-    toast.success("Recette générée : ingrédients, étapes, calories et prix estimés — modifiables si besoin");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -375,35 +380,40 @@ function ManualMealDialog({
       return;
     }
     setLoading(true);
-    const result = await saveManualMeal({
-      entryId: entry?.id,
-      date: new Date(date),
-      mealType: mealType as never,
-      servings: defaultServings,
-      name: name.trim(),
-      calories: Number(calories),
-      servingWeightGrams: grams ? Number(grams) : 300,
-      proteins: proteins ? Number(proteins) : undefined,
-      carbs: carbs ? Number(carbs) : undefined,
-      fats: fats ? Number(fats) : undefined,
-      prepTime: prepTime ? Number(prepTime) : undefined,
-      priceEstimate: price ? Number(price) : undefined,
-      ingredients:
-        aiIngredients ??
-        ingredientsText
-          .split(",")
-          .map((s) => s.trim())
-          .filter(Boolean)
-          .map((n) => ({ name: n, quantity: null, unit: null })),
-      steps: aiSteps ?? undefined,
-    });
-    setLoading(false);
-    if (!result.ok) {
-      toast.error(result.error);
-      return;
+    try {
+      const result = await saveManualMeal({
+        entryId: entry?.id,
+        date: new Date(date),
+        mealType: mealType as never,
+        servings: defaultServings,
+        name: name.trim(),
+        calories: Number(calories),
+        servingWeightGrams: grams ? Number(grams) : 300,
+        proteins: proteins ? Number(proteins) : undefined,
+        carbs: carbs ? Number(carbs) : undefined,
+        fats: fats ? Number(fats) : undefined,
+        prepTime: prepTime ? Number(prepTime) : undefined,
+        priceEstimate: price ? Number(price) : undefined,
+        ingredients:
+          aiIngredients ??
+          ingredientsText
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .map((n) => ({ name: n, quantity: null, unit: null })),
+        steps: aiSteps ?? undefined,
+      });
+      if (!result.ok) {
+        toast.error(result.error);
+        return;
+      }
+      setOpen(false);
+      toast.success("Repas enregistré, portions recalculées selon les objectifs de chacun");
+    } catch {
+      toast.error("L'enregistrement a échoué, réessaie.");
+    } finally {
+      setLoading(false);
     }
-    setOpen(false);
-    toast.success("Repas enregistré, portions recalculées selon les objectifs de chacun");
   }
 
   return (
