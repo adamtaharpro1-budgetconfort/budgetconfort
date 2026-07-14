@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { Checkbox } from "@/components/ui/checkbox";
 import { completeOnboarding, type OnboardingInput } from "@/lib/actions/onboarding";
-import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { calculateBMR, calculateTDEE, calculateAge, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
 import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -25,6 +25,17 @@ const GOALS = [
 const ALLERGY_OPTIONS = ["Gluten", "Lactose", "Arachides", "Fruits de mer", "Œufs", "Soja"];
 const PREF_OPTIONS = ["Végétarien", "Végan", "Halal", "Casher", "Sans sucre", "Pas de restriction"];
 
+function yearsAgo(n: number) {
+  const d = new Date();
+  d.setFullYear(d.getFullYear() - n);
+  return d;
+}
+
+function toDateInputValue(date: Date | undefined) {
+  if (!date) return "";
+  return new Date(date).toISOString().slice(0, 10);
+}
+
 export default function OnboardingPage() {
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -33,7 +44,7 @@ export default function OnboardingPage() {
     householdType: "SOLO",
     adultsCount: 1,
     childrenCount: 0,
-    childrenAges: [],
+    childrenBirthDates: [],
     mainGoal: "TOUT_FAIRE",
     sex: "F",
     activityLevel: "MODERATE",
@@ -45,9 +56,9 @@ export default function OnboardingPage() {
   });
 
   const previewTdee =
-    data.height && data.weight && data.age && data.sex
+    data.height && data.weight && data.birthDate && data.sex
       ? calculateTDEE(
-          calculateBMR(data.sex, data.weight, data.height, data.age),
+          calculateBMR(data.sex, data.weight, data.height, calculateAge(data.birthDate)),
           (data.activityLevel ?? "MODERATE") as ActivityLevel
         )
       : null;
@@ -111,7 +122,7 @@ export default function OnboardingPage() {
                   update("householdType", opt.value as OnboardingInput["householdType"]);
                   update("adultsCount", opt.adults);
                   update("childrenCount", opt.children);
-                  update("childrenAges", Array(opt.children).fill(6));
+                  update("childrenBirthDates", Array(opt.children).fill(yearsAgo(6)));
                 }}
               >
                 {opt.label}
@@ -141,11 +152,11 @@ export default function OnboardingPage() {
                     value={data.childrenCount ?? 0}
                     onChange={(e) => {
                       const count = Math.max(Number(e.target.value), 0);
-                      const ages = data.childrenAges ?? [];
+                      const birthDates = data.childrenBirthDates ?? [];
                       update("childrenCount", count);
                       update(
-                        "childrenAges",
-                        Array.from({ length: count }, (_, i) => ages[i] ?? 6)
+                        "childrenBirthDates",
+                        Array.from({ length: count }, (_, i) => birthDates[i] ?? yearsAgo(6))
                       );
                     }}
                   />
@@ -153,20 +164,18 @@ export default function OnboardingPage() {
               </div>
               {(data.childrenCount ?? 0) > 0 && (
                 <div className="space-y-2">
-                  <Label>Âge de chaque enfant</Label>
+                  <Label>Date de naissance de chaque enfant</Label>
                   <div className="grid grid-cols-3 gap-3">
                     {Array.from({ length: data.childrenCount ?? 0 }).map((_, i) => (
                       <div key={i} className="space-y-1">
                         <p className="text-xs text-muted-foreground">Enfant {i + 1}</p>
                         <Input
-                          type="number"
-                          min={0}
-                          max={17}
-                          value={data.childrenAges?.[i] ?? 6}
+                          type="date"
+                          value={toDateInputValue(data.childrenBirthDates?.[i])}
                           onChange={(e) => {
-                            const ages = [...(data.childrenAges ?? [])];
-                            ages[i] = Number(e.target.value);
-                            update("childrenAges", ages);
+                            const birthDates = [...(data.childrenBirthDates ?? [])];
+                            birthDates[i] = new Date(e.target.value);
+                            update("childrenBirthDates", birthDates);
                           }}
                         />
                       </div>
@@ -237,8 +246,12 @@ export default function OnboardingPage() {
               <Input type="number" value={data.weight ?? ""} onChange={(e) => update("weight", Number(e.target.value))} />
             </div>
             <div className="space-y-2">
-              <Label>Âge</Label>
-              <Input type="number" value={data.age ?? ""} onChange={(e) => update("age", Number(e.target.value))} />
+              <Label>Date de naissance</Label>
+              <Input
+                type="date"
+                value={toDateInputValue(data.birthDate)}
+                onChange={(e) => update("birthDate", e.target.value ? new Date(e.target.value) : undefined as never)}
+              />
             </div>
             <div className="space-y-2">
               <Label>Sexe</Label>

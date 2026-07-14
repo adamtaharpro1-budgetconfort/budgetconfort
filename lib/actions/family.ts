@@ -9,7 +9,7 @@ import type { ActionResult } from "@/lib/actions/auth";
 export interface FamilyMemberInput {
   label: string;
   isChild: boolean;
-  age?: number;
+  birthDate?: Date;
   sex?: string;
   height?: number;
   weight?: number;
@@ -29,7 +29,7 @@ export async function addFamilyMember(input: FamilyMemberInput): Promise<ActionR
       role: input.isChild ? "CHILD" : "MEMBER",
       label: input.label.trim(),
       isChild: input.isChild,
-      age: input.age,
+      birthDate: input.birthDate,
       sex: input.sex,
       height: input.height,
       weight: input.weight,
@@ -55,7 +55,7 @@ export async function updateFamilyMember(id: string, input: FamilyMemberInput): 
       label: input.label.trim(),
       isChild: input.isChild,
       role: input.isChild ? "CHILD" : "MEMBER",
-      age: input.age,
+      birthDate: input.birthDate,
       sex: input.sex,
       height: input.height,
       weight: input.weight,

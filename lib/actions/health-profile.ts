@@ -8,6 +8,7 @@ import {
   computeFullNutritionProfile,
   estimateGoalPlan,
   calculateMacros,
+  calculateAge,
   type ActivityLevel,
   type NutritionGoal,
 } from "@/lib/nutrition-calc";
@@ -16,7 +17,7 @@ import type { ActionResult } from "@/lib/actions/auth";
 const healthProfileSchema = z.object({
   firstName: z.string().min(1),
   sex: z.enum(["M", "F"]),
-  age: z.number().min(10).max(120),
+  birthDate: z.coerce.date(),
   height: z.number().min(50).max(250),
   weight: z.number().min(20).max(300),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
@@ -38,11 +39,12 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
   const data = parsed.data;
 
   const userId = session.user.id;
+  const age = calculateAge(data.birthDate);
   const base = computeFullNutritionProfile({
     sex: data.sex,
     weight: data.weight,
     height: data.height,
-    age: data.age,
+    age,
     activityLevel: data.activityLevel as ActivityLevel,
     goal: data.goal as NutritionGoal,
   });
@@ -72,7 +74,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
       create: {
         userId,
         sex: data.sex,
-        age: data.age,
+        birthDate: data.birthDate,
         height: data.height,
         weight: data.weight,
         goal: data.goal,
@@ -91,7 +93,7 @@ export async function completeHealthProfile(input: HealthProfileInput): Promise<
       },
       update: {
         sex: data.sex,
-        age: data.age,
+        birthDate: data.birthDate,
         height: data.height,
         weight: data.weight,
         goal: data.goal,

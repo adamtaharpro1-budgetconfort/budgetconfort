@@ -158,7 +158,7 @@ model HouseholdMember {
 
   // Lightweight profile fields for members without a full User account
   isChild     Boolean  @default(false)
-  age         Int?
+  birthDate   DateTime? // sert à calculer l'âge dynamiquement (toujours à jour, contrairement à un âge saisi une fois)
   sex         String?
   height      Float?
   weight      Float?
@@ -408,7 +408,7 @@ model MealPortion {
 model NutritionProfile {
   userId          String   @id
   sex             String?
-  age             Int?
+  birthDate       DateTime? // sert à calculer l'âge dynamiquement (toujours à jour, contrairement à un âge saisi une fois)
   height          Float?
   weight          Float?
   goal            String? // LOSE, MAINTAIN, GAIN

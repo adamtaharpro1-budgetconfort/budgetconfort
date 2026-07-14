@@ -8,6 +8,7 @@ import {
   estimateGoalPlan,
   calculateMacros,
   calculateBMI,
+  calculateAge,
 } from "@/lib/nutrition-calc";
 
 export default async function NutritionPage() {
@@ -29,11 +30,12 @@ export default async function NutritionPage() {
     // Un membre avec compte utilise son propre profil nutritionnel s'il existe.
     if (m.user?.nutritionProfile) {
       const p = m.user.nutritionProfile;
+      const age = p.birthDate ? calculateAge(p.birthDate) : null;
       return {
         id: m.id,
         label: m.label ?? m.user.firstName ?? "Membre",
         isChild: m.isChild,
-        age: p.age,
+        age,
         bmi: !m.isChild && p.height && p.weight ? calculateBMI(p.weight, p.height) : null,
         calorieTarget: p.calorieTarget,
         proteinTarget: p.proteinTarget,
@@ -48,13 +50,14 @@ export default async function NutritionPage() {
     }
 
     // Enfant : repères PNNS par tranche d'âge (une formule adulte serait fausse pour un enfant).
-    if (m.isChild && m.age != null) {
-      const nutrition = estimateChildNutrition(m.age);
+    if (m.isChild && m.birthDate != null) {
+      const age = calculateAge(m.birthDate);
+      const nutrition = estimateChildNutrition(age);
       return {
         id: m.id,
         label: m.label ?? "Membre",
         isChild: true,
-        age: m.age,
+        age,
         bmi: null,
         calorieTarget: nutrition.calorieTarget,
         proteinTarget: nutrition.proteinTarget,
@@ -69,11 +72,12 @@ export default async function NutritionPage() {
     }
 
     // Adulte sans compte : calcul à partir des infos de base saisies dans la page Famille.
-    if (!m.isChild && m.sex && m.age && m.height && m.weight) {
+    if (!m.isChild && m.sex && m.birthDate && m.height && m.weight) {
+      const age = calculateAge(m.birthDate);
       const goal = (m.goal as "LOSE" | "MAINTAIN" | "GAIN") ?? "MAINTAIN";
       const base = computeFullNutritionProfile({
         sex: m.sex,
-        age: m.age,
+        age,
         height: m.height,
         weight: m.weight,
         activityLevel: "MODERATE",
@@ -85,7 +89,7 @@ export default async function NutritionPage() {
         id: m.id,
         label: m.label ?? "Membre",
         isChild: false,
-        age: m.age,
+        age,
         bmi: calculateBMI(m.weight, m.height),
         calorieTarget: plan.dailyCalorieTarget,
         proteinTarget: macros.proteinTarget,
@@ -103,7 +107,7 @@ export default async function NutritionPage() {
       id: m.id,
       label: m.label ?? "Membre",
       isChild: m.isChild,
-      age: m.age,
+      age: m.birthDate ? calculateAge(m.birthDate) : null,
       bmi: null,
       calorieTarget: null,
       proteinTarget: null,

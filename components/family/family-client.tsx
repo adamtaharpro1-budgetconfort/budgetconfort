@@ -19,7 +19,7 @@ import Link from "next/link";
 import { Plus, Trash2, User as UserIcon, Baby, Pencil, Link2, Copy, X, Settings } from "lucide-react";
 import { addFamilyMember, updateFamilyMember, deleteFamilyMember, type FamilyMemberInput } from "@/lib/actions/family";
 import { createFamilyInvite, cancelInvite } from "@/lib/actions/invite";
-import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { calculateBMR, calculateTDEE, calculateAge, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
 import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 import { formatDate } from "@/lib/utils";
@@ -30,6 +30,7 @@ interface Member {
   label: string;
   isChild: boolean;
   age: number | null;
+  birthDate: string | null;
   sex: string | null;
   height: number | null;
   weight: number | null;
@@ -302,7 +303,7 @@ function MemberDialog({ existing }: { existing?: Member }) {
   const [isChild, setIsChild] = useState(existing?.isChild ?? false);
   const [goal, setGoal] = useState(existing?.goal ?? "MAINTAIN");
   const [sex, setSex] = useState(existing?.sex ?? "");
-  const [age, setAge] = useState(existing?.age ? String(existing.age) : "");
+  const [birthDate, setBirthDate] = useState(existing?.birthDate ? existing.birthDate.slice(0, 10) : "");
   const [height, setHeight] = useState(existing?.height ? String(existing.height) : "");
   const [weight, setWeight] = useState(existing?.weight ? String(existing.weight) : "");
   const [targetWeightDelta, setTargetWeightDelta] = useState(
@@ -313,8 +314,8 @@ function MemberDialog({ existing }: { existing?: Member }) {
   );
 
   const previewTdee =
-    sex && age && height && weight
-      ? calculateTDEE(calculateBMR(sex, Number(weight), Number(height), Number(age)), "MODERATE" as ActivityLevel)
+    sex && birthDate && height && weight
+      ? calculateTDEE(calculateBMR(sex, Number(weight), Number(height), calculateAge(new Date(birthDate))), "MODERATE" as ActivityLevel)
       : null;
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -324,7 +325,7 @@ function MemberDialog({ existing }: { existing?: Member }) {
     const input: FamilyMemberInput = {
       label: form.get("label") as string,
       isChild,
-      age: age ? Number(age) : undefined,
+      birthDate: birthDate ? new Date(birthDate) : undefined,
       sex: sex || undefined,
       height: height ? Number(height) : undefined,
       weight: weight ? Number(weight) : undefined,
@@ -370,8 +371,8 @@ function MemberDialog({ existing }: { existing?: Member }) {
           </label>
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
-              <Label>Âge</Label>
-              <Input type="number" min={0} max={120} value={age} onChange={(e) => setAge(e.target.value)} />
+              <Label>Date de naissance</Label>
+              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} />
             </div>
             <div className="space-y-2">
               <Label>Sexe</Label>

@@ -7,6 +7,7 @@ import {
   computeFullNutritionProfile,
   estimateGoalPlan,
   calculateMacros,
+  calculateAge,
   type ActivityLevel,
   type NutritionGoal,
 } from "@/lib/nutrition-calc";
@@ -17,13 +18,13 @@ const onboardingSchema = z.object({
   householdType: z.enum(["SOLO", "COUPLE", "FAMILY"]),
   adultsCount: z.number().min(1).max(10).default(1),
   childrenCount: z.number().min(0).max(10).default(0),
-  childrenAges: z.array(z.number().min(0).max(17)).default([]),
+  childrenBirthDates: z.array(z.coerce.date()).default([]),
   monthlyIncome: z.number().min(0),
   rent: z.number().min(0),
   mainGoal: z.enum(["ECONOMISER", "MIEUX_MANGER", "PERDRE_POIDS", "ORGANISER_COURSES", "TOUT_FAIRE"]),
   height: z.number().min(50).max(250),
   weight: z.number().min(20).max(300),
-  age: z.number().min(10).max(120),
+  birthDate: z.coerce.date(),
   sex: z.enum(["M", "F"]),
   activityLevel: z.enum(["SEDENTARY", "LIGHT", "MODERATE", "ACTIVE", "VERY_ACTIVE"]),
   weightGoal: z.enum(["LOSE", "MAINTAIN", "GAIN"]).default("MAINTAIN"),
@@ -50,11 +51,12 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
     return { ok: true };
   }
 
+  const age = calculateAge(data.birthDate);
   const base = computeFullNutritionProfile({
     sex: data.sex,
     weight: data.weight,
     height: data.height,
-    age: data.age,
+    age,
     activityLevel: data.activityLevel as ActivityLevel,
     goal: data.weightGoal as NutritionGoal,
   });
@@ -105,7 +107,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
           role: "CHILD",
           label: `Enfant ${i + 1}`,
           isChild: true,
-          age: data.childrenAges[i],
+          birthDate: data.childrenBirthDates[i],
         },
       });
     }
@@ -162,7 +164,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
       create: {
         userId,
         sex: data.sex,
-        age: data.age,
+        birthDate: data.birthDate,
         height: data.height,
         weight: data.weight,
         goal: data.weightGoal,
@@ -181,7 +183,7 @@ export async function completeOnboarding(input: OnboardingInput): Promise<Action
       },
       update: {
         sex: data.sex,
-        age: data.age,
+        birthDate: data.birthDate,
         height: data.height,
         weight: data.weight,
         goal: data.weightGoal,

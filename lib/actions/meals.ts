@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
 import { AI_MODEL } from "@/lib/ai";
-import { resolveMemberCalorieTarget } from "@/lib/nutrition-calc";
+import { resolveMemberCalorieTarget, calculateAge } from "@/lib/nutrition-calc";
 import type { ActionResult } from "@/lib/actions/auth";
 import type { MealType } from "@prisma/client";
 
@@ -78,7 +78,8 @@ async function buildMealPlanContext(userId: string, householdId: string, serving
   // ils sont comptés dans la taille du foyer (quantités de la recette adaptées en conséquence),
   // mais on ne veut pas se substituer à un parent pour décider combien un enfant doit manger.
   const memberProfiles = members.map((m) => {
-    const age = m.age ?? m.user?.nutritionProfile?.age ?? null;
+    const birthDate = m.birthDate ?? m.user?.nutritionProfile?.birthDate ?? null;
+    const age = birthDate ? calculateAge(birthDate) : null;
     const isYoungChild = m.isChild && (age == null || age < 16);
     return {
       id: m.id,
@@ -101,7 +102,9 @@ async function buildMealPlanContext(userId: string, householdId: string, serving
 
   const adultsCount = members.filter((m) => !m.isChild).length || servings;
   const childrenCount = members.filter((m) => m.isChild).length;
-  const childrenAges = members.filter((m) => m.isChild && m.age != null).map((m) => m.age);
+  const childrenAges = members
+    .filter((m) => m.isChild && m.birthDate != null)
+    .map((m) => calculateAge(m.birthDate!));
   const householdBreakdown =
     childrenCount > 0
       ? `Composition du foyer : ${adultsCount} adulte(s) et ${childrenCount} enfant(s)${childrenAges.length ? ` (âges : ${childrenAges.join(", ")})` : ""}. Adapte les portions : portions pleines pour les adultes, portions réduites et adaptées au goût des enfants selon leur âge.`

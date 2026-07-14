@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { completeHealthProfile } from "@/lib/actions/health-profile";
-import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { calculateBMR, calculateTDEE, calculateAge, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
 import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
@@ -32,7 +32,7 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
   const [sex, setSex] = useState<"F" | "M">("F");
   const [activityLevel, setActivityLevel] = useState("MODERATE");
   const [goal, setGoal] = useState("MAINTAIN");
-  const [age, setAge] = useState("");
+  const [birthDate, setBirthDate] = useState("");
   const [height, setHeight] = useState("");
   const [weight, setWeight] = useState("");
   const [targetWeightDelta, setTargetWeightDelta] = useState("");
@@ -41,9 +41,9 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
   const [preferences, setPreferences] = useState<string[]>([]);
 
   const previewTdee =
-    age && height && weight
+    birthDate && height && weight
       ? calculateTDEE(
-          calculateBMR(sex, Number(weight), Number(height), Number(age)),
+          calculateBMR(sex, Number(weight), Number(height), calculateAge(new Date(birthDate))),
           activityLevel as ActivityLevel
         )
       : null;
@@ -59,7 +59,7 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
     const result = await completeHealthProfile({
       firstName: form.get("firstName") as string,
       sex,
-      age: Number(age),
+      birthDate: new Date(birthDate),
       height: Number(height),
       weight: Number(weight),
       activityLevel: activityLevel as never,
@@ -96,8 +96,8 @@ export function HealthProfileForm({ defaultFirstName }: { defaultFirstName: stri
               </div>
             </div>
             <div className="space-y-2">
-              <Label>Âge</Label>
-              <Input type="number" min={10} max={120} value={age} onChange={(e) => setAge(e.target.value)} required />
+              <Label>Date de naissance</Label>
+              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Taille (cm)</Label>

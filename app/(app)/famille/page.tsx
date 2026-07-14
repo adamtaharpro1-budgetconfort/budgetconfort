@@ -2,6 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
 import { FamilyClient } from "@/components/family/family-client";
 import { listInvites } from "@/lib/actions/invite";
+import { calculateAge } from "@/lib/nutrition-calc";
 
 export default async function FamillePage() {
   const { userId, household } = await requireHousehold();
@@ -15,7 +16,7 @@ export default async function FamillePage() {
             firstName: true,
             email: true,
             image: true,
-            nutritionProfile: { select: { goal: true, targetWeightDelta: true, targetDurationMonths: true } },
+            nutritionProfile: { select: { goal: true, targetWeightDelta: true, targetDurationMonths: true, birthDate: true } },
           },
         },
       },
@@ -35,12 +36,15 @@ export default async function FamillePage() {
       </div>
       <FamilyClient
         currentUserId={userId}
-        members={members.map((m) => ({
+        members={members.map((m) => {
+          const birthDate = m.birthDate ?? m.user?.nutritionProfile?.birthDate ?? null;
+          return {
           id: m.id,
           userId: m.userId,
           label: m.label ?? m.user?.firstName ?? "Membre",
           isChild: m.isChild,
-          age: m.age,
+          age: birthDate ? calculateAge(birthDate) : null,
+          birthDate: birthDate ? birthDate.toISOString() : null,
           sex: m.sex,
           height: m.height,
           weight: m.weight,
@@ -50,7 +54,8 @@ export default async function FamillePage() {
           hasAccount: !!m.userId,
           accountEmail: m.user?.email ?? null,
           role: m.role,
-        }))}
+          };
+        })}
         invites={invites.map((i) => ({
           id: i.id,
           label: i.label,

@@ -7,6 +7,7 @@ import {
   computeFullNutritionProfile,
   estimateGoalPlan,
   calculateMacros,
+  calculateAge,
   type ActivityLevel,
   type NutritionGoal,
 } from "@/lib/nutrition-calc";
@@ -14,7 +15,7 @@ import type { ActionResult } from "@/lib/actions/auth";
 
 export async function updateNutritionProfile(input: {
   sex: string;
-  age: number;
+  birthDate: Date;
   height: number;
   weight: number;
   goal: NutritionGoal;
@@ -26,7 +27,7 @@ export async function updateNutritionProfile(input: {
 }): Promise<ActionResult> {
   const { userId } = await requireSessionHousehold();
   const { targetWeightDelta, targetDurationMonths, ...calcInput } = input;
-  const base = computeFullNutritionProfile(calcInput);
+  const base = computeFullNutritionProfile({ ...calcInput, age: calculateAge(input.birthDate) });
   const normalizedDelta = input.goal === "MAINTAIN" ? null : targetWeightDelta ?? null;
   const normalizedDuration = input.goal === "MAINTAIN" ? null : targetDurationMonths ?? null;
   const plan = estimateGoalPlan(base.tdee, input.goal, normalizedDelta, normalizedDuration);
@@ -61,7 +62,7 @@ export async function updateNutritionGoal(
   const { userId } = await requireSessionHousehold();
 
   const existing = await prisma.nutritionProfile.findUnique({ where: { userId } });
-  if (!existing?.sex || !existing.age || !existing.height || !existing.weight) {
+  if (!existing?.sex || !existing.birthDate || !existing.height || !existing.weight) {
     return {
       ok: false,
       error: "Complète d'abord ton profil (âge, taille, poids) dans Paramètres → Nutrition.",
@@ -70,7 +71,7 @@ export async function updateNutritionGoal(
 
   const base = computeFullNutritionProfile({
     sex: existing.sex,
-    age: existing.age,
+    age: calculateAge(existing.birthDate),
     height: existing.height,
     weight: existing.weight,
     activityLevel: (existing.activityLevel as ActivityLevel) ?? "MODERATE",

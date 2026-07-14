@@ -1,6 +1,16 @@
 export type ActivityLevel = "SEDENTARY" | "LIGHT" | "MODERATE" | "ACTIVE" | "VERY_ACTIVE";
 export type NutritionGoal = "LOSE" | "MAINTAIN" | "GAIN";
 
+/** Âge en années révolues à partir d'une date de naissance — toujours exact, contrairement à un âge saisi une fois qui devient faux avec le temps. */
+export function calculateAge(birthDate: Date, at: Date = new Date()): number {
+  let age = at.getFullYear() - birthDate.getFullYear();
+  const monthDiff = at.getMonth() - birthDate.getMonth();
+  if (monthDiff < 0 || (monthDiff === 0 && at.getDate() < birthDate.getDate())) {
+    age--;
+  }
+  return age;
+}
+
 const ACTIVITY_MULTIPLIER: Record<ActivityLevel, number> = {
   SEDENTARY: 1.2,
   LIGHT: 1.375,

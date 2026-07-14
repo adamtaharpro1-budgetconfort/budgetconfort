@@ -13,7 +13,7 @@ import { Select, SelectTrigger, SelectValue, SelectContent, SelectItem } from "@
 import { updateProfile } from "@/lib/actions/profile";
 import { changePassword } from "@/lib/actions/auth";
 import { updateNutritionProfile } from "@/lib/actions/nutrition";
-import { calculateBMR, calculateTDEE, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
+import { calculateBMR, calculateTDEE, calculateAge, type ActivityLevel, type NutritionGoal } from "@/lib/nutrition-calc";
 import { GoalRecap } from "@/components/nutrition/goal-recap";
 import { toast } from "sonner";
 
@@ -21,7 +21,7 @@ interface Props {
   user: { firstName: string | null; lastName: string | null; email: string; language: string; currency: string; country: string | null };
   nutritionProfile: {
     sex: string | null;
-    age: number | null;
+    birthDate: Date | null;
     height: number | null;
     weight: number | null;
     goal: string | null;
@@ -141,7 +141,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
   const [sex, setSex] = useState(profile?.sex ?? "F");
   const [goal, setGoal] = useState(profile?.goal ?? "MAINTAIN");
   const [activityLevel, setActivityLevel] = useState(profile?.activityLevel ?? "MODERATE");
-  const [age, setAge] = useState(profile?.age ? String(profile.age) : "");
+  const [birthDate, setBirthDate] = useState(profile?.birthDate ? new Date(profile.birthDate).toISOString().slice(0, 10) : "");
   const [height, setHeight] = useState(profile?.height ? String(profile.height) : "");
   const [weight, setWeight] = useState(profile?.weight ? String(profile.weight) : "");
   const [targetWeightDelta, setTargetWeightDelta] = useState(
@@ -152,9 +152,9 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
   );
 
   const previewTdee =
-    age && height && weight
+    birthDate && height && weight
       ? calculateTDEE(
-          calculateBMR(sex, Number(weight), Number(height), Number(age)),
+          calculateBMR(sex, Number(weight), Number(height), calculateAge(new Date(birthDate))),
           activityLevel as ActivityLevel
         )
       : null;
@@ -165,7 +165,7 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
     const form = new FormData(e.currentTarget);
     const result = await updateNutritionProfile({
       sex,
-      age: Number(age),
+      birthDate: new Date(birthDate),
       height: Number(height),
       weight: Number(weight),
       goal: goal as never,
@@ -200,8 +200,8 @@ function NutritionTab({ profile }: { profile: Props["nutritionProfile"] }) {
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Âge</Label>
-              <Input type="number" value={age} onChange={(e) => setAge(e.target.value)} required />
+              <Label>Date de naissance</Label>
+              <Input type="date" value={birthDate} onChange={(e) => setBirthDate(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label>Taille (cm)</Label>
