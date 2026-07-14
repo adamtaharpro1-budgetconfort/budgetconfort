@@ -42,6 +42,8 @@ export default async function BudgetPage() {
           label: f.label,
           amount: f.amount,
           meta: f.dueDay ? `${f.category} · à payer le ${f.dueDay}` : f.category,
+          category: f.category,
+          dueDay: f.dueDay,
         }))}
         transactions={transactions.map((t) => ({ id: t.id, label: t.label, amount: t.amount, meta: t.category }))}
         customFixedCategories={customFixedCategories}

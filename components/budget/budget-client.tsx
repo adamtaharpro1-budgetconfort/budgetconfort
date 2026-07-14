@@ -21,12 +21,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus, Trash2, Pencil } from "lucide-react";
 import { formatCurrency } from "@/lib/utils";
 import {
   addIncome,
   deleteIncome,
   addFixedExpense,
+  updateFixedExpense,
   deleteFixedExpense,
   addTransaction,
   deleteTransaction,
@@ -43,6 +44,8 @@ interface Row {
   label: string;
   amount: number;
   meta: string;
+  category?: string;
+  dueDay?: number | null;
 }
 
 export function BudgetClient({
@@ -111,6 +114,10 @@ export function BudgetClient({
         currency={currency}
         onDelete={(id) => deleteFixedExpense(id)}
         addDialog={<AddFixedExpenseDialog customCategories={customFixedCategories} />}
+        renderRowActions={(row) => (
+          <EditFixedExpenseDialog expense={row} customCategories={customFixedCategories} />
+        )}
+        total={fixedExpenses.reduce((s, r) => s + r.amount, 0)}
       />
       <Section
         title="Dépenses variables (ce mois-ci)"
@@ -130,6 +137,8 @@ function Section({
   onDelete,
   addDialog,
   emptyLabel,
+  renderRowActions,
+  total,
 }: {
   title: string;
   rows: Row[];
@@ -137,6 +146,8 @@ function Section({
   onDelete: (id: string) => Promise<void>;
   addDialog: React.ReactNode;
   emptyLabel?: string;
+  renderRowActions?: (row: Row) => React.ReactNode;
+  total?: number;
 }) {
   const [isPending, startTransition] = useTransition();
   return (
@@ -158,6 +169,7 @@ function Section({
                 </div>
                 <div className="flex items-center gap-3">
                   <span className="text-sm font-medium">{formatCurrency(r.amount, currency)}</span>
+                  {renderRowActions?.(r)}
                   <button
                     disabled={isPending}
                     onClick={() => startTransition(() => onDelete(r.id))}
@@ -169,6 +181,12 @@ function Section({
               </li>
             ))}
           </ul>
+        )}
+        {total != null && rows.length > 0 && (
+          <div className="mt-3 flex items-center justify-between border-t border-border pt-3 text-sm font-semibold">
+            <span>Total</span>
+            <span>{formatCurrency(total, currency)}</span>
+          </div>
         )}
       </CardContent>
     </Card>
@@ -315,6 +333,93 @@ function AddFixedExpenseDialog({ customCategories }: { customCategories: string[
           )}
           <DialogFooter>
             <Button type="submit" disabled={loading}>{loading ? "..." : "Ajouter"}</Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+function EditFixedExpenseDialog({ expense, customCategories }: { expense: Row; customCategories: string[] }) {
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState(expense.category ?? "LOYER");
+  const [customCategory, setCustomCategory] = useState("");
+
+  const allCategories = [...FIXED_CATEGORIES, ...customCategories.filter((c) => !FIXED_CATEGORIES.includes(c))];
+
+  async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const finalCategory = category === CUSTOM_CATEGORY_VALUE ? customCategory.trim() : category;
+    if (!finalCategory) {
+      toast.error("Indique un nom de catégorie");
+      return;
+    }
+    setLoading(true);
+    const form = new FormData(e.currentTarget);
+    try {
+      const dueDayValue = form.get("dueDay") as string;
+      await updateFixedExpense(expense.id, {
+        label: form.get("label") as string,
+        amount: Number(form.get("amount")),
+        category: finalCategory,
+        dueDay: dueDayValue ? Number(dueDayValue) : undefined,
+      });
+      setOpen(false);
+      toast.success("Charge mise à jour");
+    } catch {
+      toast.error("Erreur");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <button className="text-muted-foreground hover:text-foreground" title="Modifier">
+          <Pencil className="h-4 w-4" />
+        </button>
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader><DialogTitle>Modifier {expense.label}</DialogTitle></DialogHeader>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="space-y-2">
+            <Label>Libellé</Label>
+            <Input name="label" defaultValue={expense.label} required />
+          </div>
+          <div className="space-y-2">
+            <Label>Montant</Label>
+            <Input name="amount" type="number" step="0.01" defaultValue={expense.amount} required />
+          </div>
+          <div className="space-y-2">
+            <Label>Jour de paiement (1-31, optionnel)</Label>
+            <Input name="dueDay" type="number" min={1} max={31} defaultValue={expense.dueDay ?? undefined} placeholder="Ex: 5" />
+          </div>
+          <div className="space-y-2">
+            <Label>Catégorie</Label>
+            <Select value={category} onValueChange={setCategory}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {allCategories.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                <SelectItem value={CUSTOM_CATEGORY_VALUE}>Autre (nouvelle catégorie)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {category === CUSTOM_CATEGORY_VALUE && (
+            <div className="space-y-2">
+              <Label>Nom de la nouvelle catégorie</Label>
+              <Input
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Ex: Eau"
+                autoFocus
+                required
+              />
+            </div>
+          )}
+          <DialogFooter>
+            <Button type="submit" disabled={loading}>{loading ? "..." : "Enregistrer"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

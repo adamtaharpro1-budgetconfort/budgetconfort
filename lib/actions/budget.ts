@@ -26,6 +26,13 @@ export async function addFixedExpense(input: { label: string; amount: number; ca
   revalidatePath("/dashboard");
 }
 
+export async function updateFixedExpense(id: string, input: { label: string; amount: number; category: string; dueDay?: number }) {
+  const { householdId } = await requireSessionHousehold();
+  await prisma.fixedExpense.updateMany({ where: { id, householdId }, data: input });
+  revalidatePath("/budget");
+  revalidatePath("/dashboard");
+}
+
 export async function deleteFixedExpense(id: string) {
   const { householdId } = await requireSessionHousehold();
   await prisma.fixedExpense.deleteMany({ where: { id, householdId } });
