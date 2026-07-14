@@ -74,21 +74,30 @@ async function buildMealPlanContext(userId: string, householdId: string, serving
   const pantryNames = pantryItems.map((p) => p.name).join(", ") || "aucun produit en stock connu";
 
   // Besoins caloriques + objectif de chaque membre, pour dimensionner ses portions individuelles.
-  const memberProfiles = members.map((m) => ({
-    id: m.id,
-    label: m.label ?? m.user?.firstName ?? "Membre",
-    isChild: m.isChild,
-    goal: m.isChild ? null : m.user?.nutritionProfile?.goal ?? m.goal,
-    calorieTarget: resolveMemberCalorieTarget({
+  // Volontairement AUCUNE portion chiffrée (calories/grammes) pour les enfants de moins de 16 ans :
+  // ils sont comptés dans la taille du foyer (quantités de la recette adaptées en conséquence),
+  // mais on ne veut pas se substituer à un parent pour décider combien un enfant doit manger.
+  const memberProfiles = members.map((m) => {
+    const age = m.age ?? m.user?.nutritionProfile?.age ?? null;
+    const isYoungChild = m.isChild && (age == null || age < 16);
+    return {
+      id: m.id,
+      label: m.label ?? m.user?.firstName ?? "Membre",
       isChild: m.isChild,
-      age: m.age ?? m.user?.nutritionProfile?.age ?? null,
-      sex: m.sex ?? m.user?.nutritionProfile?.sex ?? null,
-      height: m.height ?? m.user?.nutritionProfile?.height ?? null,
-      weight: m.weight ?? m.user?.nutritionProfile?.weight ?? null,
-      goal: m.user?.nutritionProfile?.goal ?? m.goal,
-      linkedCalorieTarget: m.user?.nutritionProfile?.calorieTarget,
-    }),
-  }));
+      goal: m.isChild ? null : m.user?.nutritionProfile?.goal ?? m.goal,
+      calorieTarget: isYoungChild
+        ? null
+        : resolveMemberCalorieTarget({
+            isChild: m.isChild,
+            age,
+            sex: m.sex ?? m.user?.nutritionProfile?.sex ?? null,
+            height: m.height ?? m.user?.nutritionProfile?.height ?? null,
+            weight: m.weight ?? m.user?.nutritionProfile?.weight ?? null,
+            goal: m.user?.nutritionProfile?.goal ?? m.goal,
+            linkedCalorieTarget: m.user?.nutritionProfile?.calorieTarget,
+          }),
+    };
+  });
 
   const adultsCount = members.filter((m) => !m.isChild).length || servings;
   const childrenCount = members.filter((m) => m.isChild).length;
