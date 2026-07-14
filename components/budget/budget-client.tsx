@@ -46,6 +46,7 @@ interface Row {
   meta: string;
   category?: string;
   dueDay?: number | null;
+  remainingMonths?: number | null;
 }
 
 export function BudgetClient({
@@ -272,11 +273,13 @@ function AddFixedExpenseDialog({ customCategories }: { customCategories: string[
     const form = new FormData(e.currentTarget);
     try {
       const dueDayValue = form.get("dueDay") as string;
+      const remainingMonthsValue = form.get("remainingMonths") as string;
       await addFixedExpense({
         label: form.get("label") as string,
         amount: Number(form.get("amount")),
         category: finalCategory,
         dueDay: dueDayValue ? Number(dueDayValue) : undefined,
+        remainingMonths: remainingMonthsValue ? Number(remainingMonthsValue) : null,
       });
       setOpen(false);
       setCategory("LOYER");
@@ -308,6 +311,13 @@ function AddFixedExpenseDialog({ customCategories }: { customCategories: string[
           <div className="space-y-2">
             <Label>Jour de paiement (1-31, optionnel)</Label>
             <Input name="dueDay" type="number" min={1} max={31} placeholder="Ex: 5" />
+          </div>
+          <div className="space-y-2">
+            <Label>Mois restants (optionnel, ex: crédit sur 10 mois)</Label>
+            <Input name="remainingMonths" type="number" min={1} placeholder="Ex: 10" />
+            <p className="text-xs text-muted-foreground">
+              Laisse vide si c&apos;est une charge permanente. Sinon, elle s&apos;arrête automatiquement de compter une fois ce nombre de mois écoulé.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Catégorie</Label>
@@ -359,11 +369,13 @@ function EditFixedExpenseDialog({ expense, customCategories }: { expense: Row; c
     const form = new FormData(e.currentTarget);
     try {
       const dueDayValue = form.get("dueDay") as string;
+      const remainingMonthsValue = form.get("remainingMonths") as string;
       await updateFixedExpense(expense.id, {
         label: form.get("label") as string,
         amount: Number(form.get("amount")),
         category: finalCategory,
         dueDay: dueDayValue ? Number(dueDayValue) : undefined,
+        remainingMonths: remainingMonthsValue ? Number(remainingMonthsValue) : null,
       });
       setOpen(false);
       toast.success("Charge mise à jour");
@@ -395,6 +407,13 @@ function EditFixedExpenseDialog({ expense, customCategories }: { expense: Row; c
           <div className="space-y-2">
             <Label>Jour de paiement (1-31, optionnel)</Label>
             <Input name="dueDay" type="number" min={1} max={31} defaultValue={expense.dueDay ?? undefined} placeholder="Ex: 5" />
+          </div>
+          <div className="space-y-2">
+            <Label>Mois restants (optionnel, ex: crédit sur 10 mois)</Label>
+            <Input name="remainingMonths" type="number" min={1} defaultValue={expense.remainingMonths ?? undefined} placeholder="Ex: 10" />
+            <p className="text-xs text-muted-foreground">
+              Laisse vide si c&apos;est une charge permanente. Sinon, elle s&apos;arrête automatiquement de compter une fois ce nombre de mois écoulé.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Catégorie</Label>

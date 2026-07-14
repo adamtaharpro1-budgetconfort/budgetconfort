@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget, getMonthRange } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange, activeFixedExpenseWhere } from "@/lib/budget-calc";
 import { EnvelopesClient } from "@/components/envelopes/envelopes-client";
 import { getHouseholdEnvelopes } from "@/lib/actions/envelopes";
 import { Card, CardContent } from "@/components/ui/card";
@@ -14,7 +14,7 @@ export default async function TirelinesPage() {
 
   const [incomes, fixedExpenses, transactionsThisMonth, envelopes] = await Promise.all([
     prisma.income.findMany({ where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } } }),
-    prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
+    prisma.fixedExpense.findMany({ where: { householdId: household.id, ...activeFixedExpenseWhere(now) } }),
     prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
     getHouseholdEnvelopes(household.id),
   ]);

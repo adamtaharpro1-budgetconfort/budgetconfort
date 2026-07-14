@@ -1,0 +1,1 @@
+ALTER TABLE "FixedExpense" ADD COLUMN "endDate" TIMESTAMP(3);

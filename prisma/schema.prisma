@@ -212,12 +212,15 @@ model Income {
 }
 
 model FixedExpense {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   householdId String
   label       String
   category    String
   amount      Float
   dueDay      Int?
+  // Date à laquelle la charge s'arrête de compter (ex: fin d'un crédit sur N mois).
+  // null = charge permanente, reconduite indéfiniment comme avant.
+  endDate     DateTime?
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
 }

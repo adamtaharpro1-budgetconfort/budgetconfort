@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget, getMonthRange } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange, activeFixedExpenseWhere } from "@/lib/budget-calc";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -24,7 +24,7 @@ export default async function DashboardPage() {
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.income.findMany({ where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } } }),
-      prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
+      prisma.fixedExpense.findMany({ where: { householdId: household.id, ...activeFixedExpenseWhere(now) } }),
       prisma.transaction.findMany({ where: { householdId: household.id, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId: household.id }, take: 3 }),
       getHouseholdEnvelopes(household.id),

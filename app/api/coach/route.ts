@@ -2,7 +2,7 @@ import { streamText, convertToModelMessages, type UIMessage } from "ai";
 import { AI_MODEL } from "@/lib/ai";
 import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
-import { computeBudget } from "@/lib/budget-calc";
+import { computeBudget, activeFixedExpenseWhere } from "@/lib/budget-calc";
 
 export const maxDuration = 60;
 
@@ -54,7 +54,7 @@ export async function POST(req: Request) {
 
     const [incomes, fixedExpenses, transactions, goals, nutritionProfile, pantryItems] = await Promise.all([
       prisma.income.findMany({ where: { householdId } }),
-      prisma.fixedExpense.findMany({ where: { householdId } }),
+      prisma.fixedExpense.findMany({ where: { householdId, ...activeFixedExpenseWhere(now) } }),
       prisma.transaction.findMany({ where: { householdId, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId } }),
       prisma.nutritionProfile.findUnique({ where: { userId } }),

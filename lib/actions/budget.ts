@@ -19,16 +19,28 @@ export async function deleteIncome(id: string) {
   revalidatePath("/dashboard");
 }
 
-export async function addFixedExpense(input: { label: string; amount: number; category: string; dueDay?: number }) {
+function computeEndDate(remainingMonths?: number | null): Date | null {
+  if (!remainingMonths || remainingMonths <= 0) return null;
+  const end = new Date();
+  end.setMonth(end.getMonth() + remainingMonths);
+  return end;
+}
+
+export async function addFixedExpense(input: { label: string; amount: number; category: string; dueDay?: number; remainingMonths?: number | null }) {
   const { householdId } = await requireSessionHousehold();
-  await prisma.fixedExpense.create({ data: { ...input, householdId } });
+  const { remainingMonths, ...rest } = input;
+  await prisma.fixedExpense.create({ data: { ...rest, householdId, endDate: computeEndDate(remainingMonths) } });
   revalidatePath("/budget");
   revalidatePath("/dashboard");
 }
 
-export async function updateFixedExpense(id: string, input: { label: string; amount: number; category: string; dueDay?: number }) {
+export async function updateFixedExpense(
+  id: string,
+  input: { label: string; amount: number; category: string; dueDay?: number; remainingMonths?: number | null }
+) {
   const { householdId } = await requireSessionHousehold();
-  await prisma.fixedExpense.updateMany({ where: { id, householdId }, data: input });
+  const { remainingMonths, ...rest } = input;
+  await prisma.fixedExpense.updateMany({ where: { id, householdId }, data: { ...rest, endDate: computeEndDate(remainingMonths) } });
   revalidatePath("/budget");
   revalidatePath("/dashboard");
 }

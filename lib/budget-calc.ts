@@ -19,6 +19,17 @@ export function getMonthRange(date = new Date()) {
   return { start, end };
 }
 
+/** Filtre Prisma pour ne garder que les charges fixes encore actives (permanentes ou pas encore arrivées à échéance). */
+export function activeFixedExpenseWhere(now = new Date()) {
+  return { OR: [{ endDate: null }, { endDate: { gte: now } }] };
+}
+
+/** Nombre de mois restants avant l'échéance d'une charge fixe (ex: fin d'un crédit), arrondi au mois supérieur. */
+export function monthsRemaining(endDate: Date, now = new Date()) {
+  const months = (endDate.getFullYear() - now.getFullYear()) * 12 + (endDate.getMonth() - now.getMonth());
+  return Math.max(months + (endDate.getDate() >= now.getDate() ? 1 : 0), 0);
+}
+
 export function computeBudget(snapshot: BudgetSnapshot, now = new Date()) {
   const { totalIncome, totalFixed, variableSpentThisMonth } = snapshot;
   const totalDays = daysInMonth(now);

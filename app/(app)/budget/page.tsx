@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/prisma";
 import { requireHousehold } from "@/lib/household";
-import { computeBudget, getMonthRange } from "@/lib/budget-calc";
+import { computeBudget, getMonthRange, activeFixedExpenseWhere, monthsRemaining } from "@/lib/budget-calc";
 import { BudgetClient } from "@/components/budget/budget-client";
 
 const MONTH_LABEL = new Intl.DateTimeFormat("fr-FR", { month: "long", year: "numeric" });
@@ -15,7 +15,7 @@ export default async function BudgetPage() {
       where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } },
       orderBy: { date: "desc" },
     }),
-    prisma.fixedExpense.findMany({ where: { householdId: household.id } }),
+    prisma.fixedExpense.findMany({ where: { householdId: household.id, ...activeFixedExpenseWhere(now) } }),
     prisma.transaction.findMany({
       where: { householdId: household.id, date: { gte: startOfMonth } },
       orderBy: { date: "desc" },
@@ -37,14 +37,21 @@ export default async function BudgetPage() {
         budget={budget}
         currentMonthLabel={MONTH_LABEL.format(now)}
         incomes={incomes.map((i) => ({ id: i.id, label: i.label, amount: i.amount, meta: i.type }))}
-        fixedExpenses={fixedExpenses.map((f) => ({
-          id: f.id,
-          label: f.label,
-          amount: f.amount,
-          meta: f.dueDay ? `${f.category} · à payer le ${f.dueDay}` : f.category,
-          category: f.category,
-          dueDay: f.dueDay,
-        }))}
+        fixedExpenses={fixedExpenses.map((f) => {
+          const remaining = f.endDate ? monthsRemaining(f.endDate, now) : null;
+          const metaParts = [f.category];
+          if (f.dueDay) metaParts.push(`à payer le ${f.dueDay}`);
+          if (remaining != null) metaParts.push(`${remaining} mois restant${remaining > 1 ? "s" : ""}`);
+          return {
+            id: f.id,
+            label: f.label,
+            amount: f.amount,
+            meta: metaParts.join(" · "),
+            category: f.category,
+            dueDay: f.dueDay,
+            remainingMonths: remaining,
+          };
+        })}
         transactions={transactions.map((t) => ({ id: t.id, label: t.label, amount: t.amount, meta: t.category }))}
         customFixedCategories={customFixedCategories}
       />
