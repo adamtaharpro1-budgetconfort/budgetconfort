@@ -61,9 +61,11 @@ export async function scanFridge(formData: FormData): Promise<ActionResult & { r
             content: [
               {
                 type: "text",
-                text: "Analyse cette photo de frigo/congélateur/placard. Liste tous les aliments visibles avec une quantité estimée, une catégorie, et une estimation du nombre de jours avant péremption si visible. Propose aussi jusqu'à 3 idées de recettes rapides avec ces ingrédients.",
+                text: `Analyse cette photo de frigo/congélateur/placard de façon EXHAUSTIVE. Sois minutieux : inspecte chaque étagère, la porte, les bacs à légumes, les zones d'ombre et les emballages partiellement cachés ou empilés derrière d'autres produits — pas seulement les 3-4 objets les plus visibles au premier plan. Liste séparément chaque produit différent que tu identifies, même en petite quantité ou en arrière-plan.
+
+Pour chaque aliment : son nom, une quantité estimée, une catégorie, et une estimation du nombre de jours avant péremption si un indice est visible (date, état visuel). Propose aussi jusqu'à 3 idées de recettes rapides avec ces ingrédients.`,
               },
-              { type: "image", image: imageUrl },
+              { type: "image", image: imageUrl, providerOptions: { openai: { imageDetail: "high" } } },
             ],
           },
         ],
@@ -127,7 +129,7 @@ export async function scanReceipt(formData: FormData): Promise<ActionResult & { 
                 type: "text",
                 text: "Analyse ce ticket de caisse. Extrait le nom du magasin, la date, le montant total, et la liste des produits avec leur prix.",
               },
-              { type: "image", image: imageUrl },
+              { type: "image", image: imageUrl, providerOptions: { openai: { imageDetail: "high" } } },
             ],
           },
         ],
