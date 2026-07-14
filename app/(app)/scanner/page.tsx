@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { formatCurrency } from "@/lib/utils";
 import { Progress } from "@/components/ui/progress";
 import { useFakeProgress } from "@/lib/hooks/use-fake-progress";
+import { resizeImage } from "@/lib/image-resize";
 
 export default function ScannerPage() {
   return (
@@ -39,8 +40,9 @@ function FridgeScanner() {
   const [recipeIdeas, setRecipeIdeas] = useState<string[]>([]);
   const { progress, setProgress } = useFakeProgress(loading, Math.max(12, photos.length * 6));
 
-  function handleAddFiles(files: FileList) {
-    const added = Array.from(files).map((file) => ({ file, url: URL.createObjectURL(file) }));
+  async function handleAddFiles(files: FileList) {
+    const resized = await Promise.all(Array.from(files).map((file) => resizeImage(file)));
+    const added = resized.map((file) => ({ file, url: URL.createObjectURL(file) }));
     setPhotos((prev) => [...prev, ...added]);
     setResultText(null);
   }
@@ -160,12 +162,13 @@ function ReceiptScanner() {
   const [resultText, setResultText] = useState<string | null>(null);
   const { progress, setProgress } = useFakeProgress(loading, 12);
 
-  async function handleFile(file: File) {
-    setPreview(URL.createObjectURL(file));
+  async function handleFile(rawFile: File) {
     setLoading(true);
     setResultText(null);
     let success = false;
     try {
+      const file = await resizeImage(rawFile, 2000, 0.85);
+      setPreview(URL.createObjectURL(file));
       const formData = new FormData();
       formData.set("image", file);
       const result = await scanReceipt(formData);
