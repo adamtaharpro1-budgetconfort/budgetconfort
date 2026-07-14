@@ -319,9 +319,20 @@ function ManualMealDialog({
   const [carbs, setCarbs] = useState(entry?.recipe?.carbs != null ? String(entry.recipe.carbs) : "");
   const [fats, setFats] = useState(entry?.recipe?.fats != null ? String(entry.recipe.fats) : "");
   const [prepTime, setPrepTime] = useState(entry?.recipe?.prepTime ? String(entry.recipe.prepTime) : "");
+  const [price, setPrice] = useState(entry?.recipe?.priceEstimate != null ? String(entry.recipe.priceEstimate) : "");
   const [ingredientsText, setIngredientsText] = useState(
     entry?.recipe?.ingredients?.map((i) => i.name).join(", ") ?? ""
   );
+  const [aiIngredients, setAiIngredients] = useState<{ name: string; quantity: number | null; unit: string | null }[] | null>(
+    entry?.recipe?.ingredients ?? null
+  );
+  const [aiSteps, setAiSteps] = useState<string[] | null>(entry?.recipe?.steps ?? null);
+
+  function invalidateEstimate() {
+    setEstimated(false);
+    setAiIngredients(null);
+    setAiSteps(null);
+  }
 
   async function handleEstimate() {
     if (!name.trim()) {
@@ -349,8 +360,12 @@ function ManualMealDialog({
     setCarbs(String(result.estimate.carbs));
     setFats(String(result.estimate.fats));
     setPrepTime(String(result.estimate.prepTime));
+    setPrice(String(result.estimate.priceEstimate));
+    setAiIngredients(result.estimate.ingredients);
+    setAiSteps(result.estimate.steps);
+    setIngredientsText(result.estimate.ingredients.map((i) => i.name).join(", "));
     setEstimated(true);
-    toast.success("Calories et portions estimées — modifiables si besoin");
+    toast.success("Recette générée : ingrédients, étapes, calories et prix estimés — modifiables si besoin");
   }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
@@ -372,11 +387,15 @@ function ManualMealDialog({
       carbs: carbs ? Number(carbs) : undefined,
       fats: fats ? Number(fats) : undefined,
       prepTime: prepTime ? Number(prepTime) : undefined,
-      ingredients: ingredientsText
-        .split(",")
-        .map((s) => s.trim())
-        .filter(Boolean)
-        .map((n) => ({ name: n, quantity: null, unit: null })),
+      priceEstimate: price ? Number(price) : undefined,
+      ingredients:
+        aiIngredients ??
+        ingredientsText
+          .split(",")
+          .map((s) => s.trim())
+          .filter(Boolean)
+          .map((n) => ({ name: n, quantity: null, unit: null })),
+      steps: aiSteps ?? undefined,
     });
     setLoading(false);
     if (!result.ok) {
@@ -394,9 +413,9 @@ function ManualMealDialog({
         <DialogHeader>
           <DialogTitle>{entry ? "Modifier ce repas manuellement" : "Ajouter un repas manuellement"}</DialogTitle>
           <DialogDescription>
-            Indique le plat (et ses ingrédients pour une meilleure estimation), laisse l&apos;IA calculer les
-            calories, puis les portions de chaque membre sont recalculées automatiquement selon son objectif
-            nutritionnel.
+            Indique le plat et les ingrédients que tu veux utiliser, laisse l&apos;IA construire la recette
+            (quantités, étapes, calories, prix), puis les portions de chaque membre sont recalculées
+            automatiquement selon son objectif nutritionnel.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
@@ -406,27 +425,38 @@ function ManualMealDialog({
               value={name}
               onChange={(e) => {
                 setName(e.target.value);
-                setEstimated(false);
+                invalidateEstimate();
               }}
               placeholder="Ex: Poulet rôti et riz"
               required
             />
           </div>
           <div className="space-y-2">
-            <Label>Ingrédients (séparés par des virgules, optionnel mais aide l&apos;estimation)</Label>
+            <Label>Ingrédients que tu veux utiliser (séparés par des virgules)</Label>
             <Textarea
               value={ingredientsText}
               onChange={(e) => {
                 setIngredientsText(e.target.value);
-                setEstimated(false);
+                invalidateEstimate();
               }}
               placeholder="Ex: poulet, riz, poivrons"
             />
           </div>
 
           <Button type="button" variant="outline" className="w-full" onClick={handleEstimate} disabled={estimating || !name.trim()}>
-            <Sparkles className="h-4 w-4" /> {estimating ? "Estimation en cours..." : "Estimer calories et portions avec l'IA"}
+            <Sparkles className="h-4 w-4" /> {estimating ? "Génération en cours..." : "Générer la recette avec l'IA (quantités, étapes, prix)"}
           </Button>
+
+          {estimated && aiSteps && aiSteps.length > 0 && (
+            <div className="rounded-md border border-border bg-muted/40 p-3 text-xs text-muted-foreground">
+              <p className="mb-1 font-medium text-foreground">Étapes générées :</p>
+              <ol className="list-decimal space-y-0.5 pl-4">
+                {aiSteps.map((step, i) => (
+                  <li key={i}>{step}</li>
+                ))}
+              </ol>
+            </div>
+          )}
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -452,9 +482,15 @@ function ManualMealDialog({
               <Input type="number" value={fats} onChange={(e) => setFats(e.target.value)} />
             </div>
           </div>
-          <div className="space-y-2">
-            <Label>Temps de préparation (min, optionnel)</Label>
-            <Input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} />
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label>Temps de préparation (min, optionnel)</Label>
+              <Input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label>Prix estimé (€, optionnel)</Label>
+              <Input type="number" step="0.01" min={0} value={price} onChange={(e) => setPrice(e.target.value)} placeholder="Ex: 12.50" />
+            </div>
           </div>
           {estimated && (
             <p className="text-xs text-muted-foreground">

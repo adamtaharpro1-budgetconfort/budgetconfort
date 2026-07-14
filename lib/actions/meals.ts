@@ -46,6 +46,9 @@ const manualMealEstimateSchema = z.object({
   carbs: z.number().min(0),
   fats: z.number().min(0),
   prepTime: z.number().int().min(1).max(240),
+  priceEstimate: z.number().min(0),
+  ingredients: z.array(z.object({ name: z.string(), quantity: z.number().nullable(), unit: z.string().nullable() })),
+  steps: z.array(z.string()).min(1),
 });
 
 // Répartition indicative des calories quotidiennes par type de repas.
@@ -311,12 +314,21 @@ export async function estimateManualMealNutrition(input: {
   await requireSessionHousehold();
   if (!input.name.trim()) return { ok: false, error: "Indique d'abord un nom de plat." };
 
-  const prompt = `Tu es nutritionniste. Estime les valeurs nutritionnelles d'UNE portion standard du plat suivant, prévu pour ${input.servings} personne(s) au total.
+  const prompt = `Tu es chef cuisinier et nutritionniste. Construis la recette complète du plat suivant, prévu pour ${input.servings} personne(s) au total.
 
 Plat : ${input.name}
-${input.ingredients.length > 0 ? `Ingrédients principaux : ${input.ingredients.join(", ")}` : "Aucun ingrédient précisé, base-toi sur le nom du plat."}
+${
+    input.ingredients.length > 0
+      ? `Ingrédients demandés par l'utilisateur (utilise EXACTEMENT ceux-ci, sans en retirer ; tu peux seulement ajouter des ingrédients de base indispensables comme sel/poivre/huile si besoin) : ${input.ingredients.join(", ")}`
+      : "Aucun ingrédient précisé : choisis toi-même des ingrédients cohérents avec le nom du plat."
+  }
 
-Donne une estimation réaliste : calories d'UNE portion, poids en grammes d'UNE portion (servingWeightGrams), protéines/glucides/lipides en grammes pour cette portion, et un temps de préparation raisonnable en minutes.`;
+Donne :
+- la liste complète des ingrédients avec une quantité et une unité réalistes pour ${input.servings} personne(s) (ex: 400 g, 2 pièces, 1 c. à soupe)
+- les étapes de préparation numérotées
+- les calories, le poids en grammes et les macronutriments (protéines/glucides/lipides) d'UNE portion standard
+- un temps de préparation raisonnable en minutes
+- un prix estimé en euros pour l'ensemble du plat (tous les convives)`;
 
   try {
     const result = await generateObject({ model: AI_MODEL, schema: manualMealEstimateSchema, prompt });
@@ -341,6 +353,7 @@ export interface ManualMealInput {
   prepTime?: number;
   priceEstimate?: number;
   ingredients: { name: string; quantity: number | null; unit: string | null }[];
+  steps?: string[];
 }
 
 /**
@@ -365,7 +378,7 @@ export async function saveManualMeal(input: ManualMealInput): Promise<ActionResu
         carbs: input.carbs ?? 0,
         fats: input.fats ?? 0,
         servings: input.servings,
-        steps: [],
+        steps: input.steps ?? [],
         isAiGenerated: false,
         ingredients: input.ingredients.length > 0 ? { create: input.ingredients } : undefined,
       },
