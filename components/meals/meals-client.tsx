@@ -25,6 +25,7 @@ import {
   regenerateDayMeals,
   clearAllMeals,
   saveManualMeal,
+  estimateManualMealNutrition,
 } from "@/lib/actions/meals";
 import { Textarea } from "@/components/ui/textarea";
 import { toast } from "sonner";
@@ -309,6 +310,8 @@ function ManualMealDialog({
 }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [estimating, setEstimating] = useState(false);
+  const [estimated, setEstimated] = useState(false);
   const [name, setName] = useState(entry?.recipe?.name ?? "");
   const [calories, setCalories] = useState(entry?.recipe?.calories ? String(entry.recipe.calories) : "");
   const [grams, setGrams] = useState("");
@@ -319,6 +322,36 @@ function ManualMealDialog({
   const [ingredientsText, setIngredientsText] = useState(
     entry?.recipe?.ingredients?.map((i) => i.name).join(", ") ?? ""
   );
+
+  async function handleEstimate() {
+    if (!name.trim()) {
+      toast.error("Indique d'abord un nom de plat");
+      return;
+    }
+    setEstimating(true);
+    const result = await estimateManualMealNutrition({
+      name: name.trim(),
+      ingredients: ingredientsText.split(",").map((s) => s.trim()).filter(Boolean),
+      servings: defaultServings,
+    });
+    setEstimating(false);
+    if (!result.ok) {
+      toast.error(result.error);
+      return;
+    }
+    if (!result.estimate) {
+      toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
+      return;
+    }
+    setCalories(String(result.estimate.calories));
+    setGrams(String(result.estimate.servingWeightGrams));
+    setProteins(String(result.estimate.proteins));
+    setCarbs(String(result.estimate.carbs));
+    setFats(String(result.estimate.fats));
+    setPrepTime(String(result.estimate.prepTime));
+    setEstimated(true);
+    toast.success("Calories et portions estimées — modifiables si besoin");
+  }
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -361,14 +394,40 @@ function ManualMealDialog({
         <DialogHeader>
           <DialogTitle>{entry ? "Modifier ce repas manuellement" : "Ajouter un repas manuellement"}</DialogTitle>
           <DialogDescription>
-            Les portions de chaque membre seront recalculées automatiquement selon son objectif nutritionnel.
+            Indique le plat (et ses ingrédients pour une meilleure estimation), laisse l&apos;IA calculer les
+            calories, puis les portions de chaque membre sont recalculées automatiquement selon son objectif
+            nutritionnel.
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
             <Label>Nom du plat</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ex: Poulet rôti et riz" required />
+            <Input
+              value={name}
+              onChange={(e) => {
+                setName(e.target.value);
+                setEstimated(false);
+              }}
+              placeholder="Ex: Poulet rôti et riz"
+              required
+            />
           </div>
+          <div className="space-y-2">
+            <Label>Ingrédients (séparés par des virgules, optionnel mais aide l&apos;estimation)</Label>
+            <Textarea
+              value={ingredientsText}
+              onChange={(e) => {
+                setIngredientsText(e.target.value);
+                setEstimated(false);
+              }}
+              placeholder="Ex: poulet, riz, poivrons"
+            />
+          </div>
+
+          <Button type="button" variant="outline" className="w-full" onClick={handleEstimate} disabled={estimating || !name.trim()}>
+            <Sparkles className="h-4 w-4" /> {estimating ? "Estimation en cours..." : "Estimer calories et portions avec l'IA"}
+          </Button>
+
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Calories (portion standard)</Label>
@@ -397,10 +456,11 @@ function ManualMealDialog({
             <Label>Temps de préparation (min, optionnel)</Label>
             <Input type="number" value={prepTime} onChange={(e) => setPrepTime(e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label>Ingrédients (séparés par des virgules, optionnel)</Label>
-            <Textarea value={ingredientsText} onChange={(e) => setIngredientsText(e.target.value)} placeholder="Ex: poulet, riz, poivrons" />
-          </div>
+          {estimated && (
+            <p className="text-xs text-muted-foreground">
+              Valeurs estimées par l&apos;IA à partir du plat renseigné — modifie-les si besoin avant d&apos;enregistrer.
+            </p>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={loading}>{loading ? "..." : "Enregistrer"}</Button>
           </DialogFooter>

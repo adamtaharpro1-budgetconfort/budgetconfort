@@ -39,6 +39,15 @@ const mealPlanSchema = z.object({
 
 const singleRecipeSchema = z.object({ recipe: recipeSchema, adviceMessage: z.string() });
 
+const manualMealEstimateSchema = z.object({
+  calories: z.number().int().min(50).max(3000),
+  servingWeightGrams: z.number().int().min(50).max(1500),
+  proteins: z.number().min(0),
+  carbs: z.number().min(0),
+  fats: z.number().min(0),
+  prepTime: z.number().int().min(1).max(240),
+});
+
 // Répartition indicative des calories quotidiennes par type de repas.
 const MEAL_CALORIE_WEIGHT: Record<string, number> = {
   BREAKFAST: 0.25,
@@ -291,6 +300,31 @@ export async function clearAllMeals() {
   await prisma.mealPlanEntry.deleteMany({ where: { householdId, date: { gte: start, lt: end } } });
   revalidatePath("/repas");
   revalidatePath("/dashboard");
+}
+
+/** Estime les calories/macros/poids d'un plat saisi manuellement, à partir de son nom et ses ingrédients. */
+export async function estimateManualMealNutrition(input: {
+  name: string;
+  ingredients: string[];
+  servings: number;
+}): Promise<ActionResult & { estimate?: z.infer<typeof manualMealEstimateSchema> }> {
+  await requireSessionHousehold();
+  if (!input.name.trim()) return { ok: false, error: "Indique d'abord un nom de plat." };
+
+  const prompt = `Tu es nutritionniste. Estime les valeurs nutritionnelles d'UNE portion standard du plat suivant, prévu pour ${input.servings} personne(s) au total.
+
+Plat : ${input.name}
+${input.ingredients.length > 0 ? `Ingrédients principaux : ${input.ingredients.join(", ")}` : "Aucun ingrédient précisé, base-toi sur le nom du plat."}
+
+Donne une estimation réaliste : calories d'UNE portion, poids en grammes d'UNE portion (servingWeightGrams), protéines/glucides/lipides en grammes pour cette portion, et un temps de préparation raisonnable en minutes.`;
+
+  try {
+    const result = await generateObject({ model: AI_MODEL, schema: manualMealEstimateSchema, prompt });
+    return { ok: true, estimate: result.object };
+  } catch (error) {
+    console.error("[estimateManualMealNutrition] failed:", error);
+    return { ok: false, error: "L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même." };
+  }
 }
 
 export interface ManualMealInput {
