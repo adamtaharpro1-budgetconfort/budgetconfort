@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useState, useTransition, useOptimistic } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -39,6 +39,30 @@ export function ShoppingClient({ items }: { items: Item[] }) {
   const [category, setCategory] = useState<string>("Autre");
   const [filter, setFilter] = useState<string>("Tout");
 
+  const [optimisticItems, applyOptimistic] = useOptimistic(
+    items,
+    (state: Item[], action: { type: "toggle" | "delete"; id: string }) =>
+      action.type === "toggle"
+        ? state.map((i) => (i.id === action.id ? { ...i, checked: !i.checked } : i))
+        : state.filter((i) => i.id !== action.id)
+  );
+
+  function handleToggle(id: string) {
+    startTransition(async () => {
+      applyOptimistic({ type: "toggle", id });
+      const result = await toggleShoppingItem(id);
+      if (!result.ok) toast.error("L'article n'a pas pu être mis à jour, réessaie");
+    });
+  }
+
+  function handleDelete(id: string) {
+    startTransition(async () => {
+      applyOptimistic({ type: "delete", id });
+      const result = await deleteShoppingItem(id);
+      if (!result.ok) toast.error("L'article n'a pas pu être supprimé, réessaie");
+    });
+  }
+
   async function handleAdd(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     if (!name.trim()) return;
@@ -68,8 +92,8 @@ export function ShoppingClient({ items }: { items: Item[] }) {
     toast.success("Liste vidée");
   }
 
-  const unchecked = items.filter((i) => !i.checked);
-  const checked = items.filter((i) => i.checked);
+  const unchecked = optimisticItems.filter((i) => !i.checked);
+  const checked = optimisticItems.filter((i) => i.checked);
 
   const groups = SHOPPING_AISLES.filter((aisle) => filter === "Tout" || filter === aisle)
     .map((aisle) => ({
@@ -97,7 +121,7 @@ export function ShoppingClient({ items }: { items: Item[] }) {
         <Button variant="outline" onClick={handleRecategorize} disabled={recategorizing} title="Revérifier le rayon de chaque article">
           <SlidersHorizontal className="h-4 w-4" /> {recategorizing ? "..." : "Recatégoriser"}
         </Button>
-        {items.length > 0 && (
+        {optimisticItems.length > 0 && (
           <Button variant="outline" onClick={handleClear} disabled={clearing}>
             <Trash2 className="h-4 w-4" /> {clearing ? "..." : "Vider la liste"}
           </Button>
@@ -128,7 +152,7 @@ export function ShoppingClient({ items }: { items: Item[] }) {
                 </h3>
                 <ul className="divide-y divide-border">
                   {group.items.map((item) => (
-                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => startTransition(() => toggleShoppingItem(item.id))} onDelete={() => startTransition(() => deleteShoppingItem(item.id))} />
+                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => handleToggle(item.id)} onDelete={() => handleDelete(item.id)} />
                   ))}
                 </ul>
               </CardContent>
@@ -141,7 +165,7 @@ export function ShoppingClient({ items }: { items: Item[] }) {
                 <h3 className="mb-2 text-sm font-semibold text-muted-foreground">Déjà pris</h3>
                 <ul className="divide-y divide-border">
                   {checked.map((item) => (
-                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => startTransition(() => toggleShoppingItem(item.id))} onDelete={() => startTransition(() => deleteShoppingItem(item.id))} />
+                    <ShoppingRow key={item.id} item={item} isPending={isPending} onToggle={() => handleToggle(item.id)} onDelete={() => handleDelete(item.id)} />
                   ))}
                 </ul>
               </CardContent>

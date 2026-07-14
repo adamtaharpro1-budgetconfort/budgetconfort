@@ -55,18 +55,30 @@ export async function addShoppingItem(input: { name: string; quantity?: number; 
   revalidatePath("/dashboard");
 }
 
-export async function toggleShoppingItem(id: string) {
-  const item = await prisma.shoppingListItem.findUnique({ where: { id } });
-  if (!item) return;
-  await prisma.shoppingListItem.update({ where: { id }, data: { checked: !item.checked } });
-  revalidatePath("/courses");
-  revalidatePath("/dashboard");
+export async function toggleShoppingItem(id: string): Promise<{ ok: boolean }> {
+  try {
+    const item = await prisma.shoppingListItem.findUnique({ where: { id } });
+    if (!item) return { ok: false };
+    await prisma.shoppingListItem.update({ where: { id }, data: { checked: !item.checked } });
+    revalidatePath("/courses");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    console.error("[toggleShoppingItem] failed:", error);
+    return { ok: false };
+  }
 }
 
-export async function deleteShoppingItem(id: string) {
-  await prisma.shoppingListItem.delete({ where: { id } });
-  revalidatePath("/courses");
-  revalidatePath("/dashboard");
+export async function deleteShoppingItem(id: string): Promise<{ ok: boolean }> {
+  try {
+    await prisma.shoppingListItem.delete({ where: { id } });
+    revalidatePath("/courses");
+    revalidatePath("/dashboard");
+    return { ok: true };
+  } catch (error) {
+    console.error("[deleteShoppingItem] failed:", error);
+    return { ok: false };
+  }
 }
 
 export async function clearShoppingList() {
