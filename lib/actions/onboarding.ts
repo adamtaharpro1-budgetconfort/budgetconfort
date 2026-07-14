@@ -19,8 +19,8 @@ const onboardingSchema = z.object({
   adultsCount: z.number().min(1).max(10).default(1),
   childrenCount: z.number().min(0).max(10).default(0),
   childrenBirthDates: z.array(z.coerce.date()).default([]),
-  monthlyIncome: z.number().min(0),
-  rent: z.number().min(0),
+  monthlyIncome: z.number().min(0).default(0),
+  rent: z.number().min(0).default(0),
   mainGoal: z.enum(["ECONOMISER", "MIEUX_MANGER", "PERDRE_POIDS", "ORGANISER_COURSES", "TOUT_FAIRE"]),
   height: z.number().min(50).max(250),
   weight: z.number().min(20).max(300),
@@ -36,12 +36,32 @@ const onboardingSchema = z.object({
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;
 
-export async function completeOnboarding(input: OnboardingInput): Promise<ActionResult> {
+export async function completeOnboarding(input: OnboardingInput): Promise<ActionResult & { invalidFields?: string[] }> {
   const session = await auth();
   if (!session?.user?.id) return { ok: false, error: "Non authentifié" };
 
   const parsed = onboardingSchema.safeParse(input);
-  if (!parsed.success) return { ok: false, error: "Données invalides" };
+  if (!parsed.success) {
+    const FIELD_LABELS: Record<string, string> = {
+      firstName: "le prénom",
+      height: "la taille",
+      weight: "le poids",
+      birthDate: "la date de naissance",
+      monthlyIncome: "le revenu mensuel",
+      rent: "le loyer",
+      sex: "le sexe",
+      activityLevel: "le niveau d'activité",
+      childrenBirthDates: "la date de naissance d'un enfant",
+    };
+    const invalidFields = parsed.error.issues.map((issue) => String(issue.path[0])).filter((v, i, arr) => arr.indexOf(v) === i);
+    const missing = invalidFields.map((f) => FIELD_LABELS[f] ?? f);
+    console.error("[completeOnboarding] validation failed:", parsed.error.issues);
+    return {
+      ok: false,
+      error: missing.length > 0 ? `Vérifie ces champs avant de continuer : ${missing.join(", ")}.` : "Données invalides.",
+      invalidFields,
+    };
+  }
   const data = parsed.data;
 
   const userId = session.user.id;

@@ -74,6 +74,27 @@ export default function OnboardingPage() {
     setStep((s) => Math.max(s - 1, 1));
   }
 
+  const FIELD_STEP: Record<string, number> = {
+    firstName: 1,
+    householdType: 2,
+    adultsCount: 2,
+    childrenCount: 2,
+    childrenBirthDates: 2,
+    monthlyIncome: 3,
+    rent: 4,
+    mainGoal: 5,
+    height: 6,
+    weight: 6,
+    birthDate: 6,
+    sex: 6,
+    activityLevel: 6,
+    weightGoal: 6,
+    targetWeightDelta: 6,
+    targetDurationMonths: 6,
+    allergies: 7,
+    preferences: 7,
+  };
+
   async function finish() {
     if (loading || done) return;
     setLoading(true);
@@ -81,6 +102,11 @@ export default function OnboardingPage() {
     if (!result.ok) {
       setLoading(false);
       toast.error(result.error);
+      const earliestStep = (result.invalidFields ?? [])
+        .map((f) => FIELD_STEP[f])
+        .filter((s): s is number => s != null)
+        .sort((a, b) => a - b)[0];
+      if (earliestStep) setStep(earliestStep);
       return;
     }
     setDone(true);
