@@ -150,6 +150,7 @@ export interface GenerateMealPlanInput {
   cuisine?: string;
   startDate?: Date;
   preferredIngredients?: string;
+  meatMealsCount?: number;
 }
 
 export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<ActionResult & { adviceMessage?: string }> {
@@ -158,12 +159,20 @@ export async function generateAiMealPlan(input: GenerateMealPlanInput): Promise<
   const startDate = input.startDate ?? new Date();
   const ctx = await buildMealPlanContext(userId, householdId, input.servings);
 
+  const lunchDinnerTypes = input.mealTypes.filter((t) => t === "LUNCH" || t === "DINNER");
+  const lunchDinnerCount = input.numDays * lunchDinnerTypes.length;
+  const meatBlock =
+    input.meatMealsCount != null && lunchDinnerTypes.length > 0
+      ? `- Sur les ${lunchDinnerCount} repas de déjeuner/dîner de la semaine, prévois exactement ${input.meatMealsCount} repas avec de la viande (poulet, bœuf, porc, agneau...) et les ${Math.max(lunchDinnerCount - input.meatMealsCount, 0)} restants sans viande (poisson, œufs, végétarien...). Répartis-les de façon équilibrée sur la semaine plutôt que tous groupés.`
+      : "";
+
   const prompt = `Tu es un chef cuisinier et nutritionniste. Génère un plan de repas de ${input.numDays} jour(s) pour ${input.servings} personne(s).
 
 Contraintes :
 - ${ctx.householdBreakdown}
 - ${ctx.goalBlock}
 - Repas à générer chaque jour : ${input.mealTypes.join(", ")}
+${meatBlock}
 - Budget total pour la période : ${input.budgetTotal ? `${input.budgetTotal} €` : "raisonnable, sans contrainte stricte"}
 - Objectif calorique quotidien de référence : ${ctx.nutritionProfile?.calorieTarget ?? "environ 2000"} kcal
 - Allergies à éviter absolument : ${ctx.nutritionProfile?.allergies?.join(", ") || "aucune"}

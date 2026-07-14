@@ -550,12 +550,14 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
   const [cuisine, setCuisine] = useState("");
   const [preferredIngredients, setPreferredIngredients] = useState("");
   const [selectedMeals, setSelectedMeals] = useState<string[]>(["LUNCH", "DINNER"]);
+  const [meatMealsCount, setMeatMealsCount] = useState<string>("");
 
   function toggleMeal(v: string) {
     setSelectedMeals((prev) => (prev.includes(v) ? prev.filter((x) => x !== v) : [...prev, v]));
   }
 
   const recipeCount = numDays * selectedMeals.length;
+  const lunchDinnerCount = numDays * selectedMeals.filter((m) => m === "LUNCH" || m === "DINNER").length;
   const estimatedSeconds = Math.max(3 + recipeCount * 2.2, 5);
   const { progress, setProgress } = useFakeProgress(loading, estimatedSeconds);
 
@@ -572,6 +574,7 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
       budgetTotal: budget ? Number(budget) : undefined,
       cuisine: cuisine || undefined,
       preferredIngredients: preferredIngredients || undefined,
+      meatMealsCount: meatMealsCount !== "" ? Number(meatMealsCount) : undefined,
     });
 
     if (!result.ok) {
@@ -621,6 +624,23 @@ function GenerateMealPlanDialog({ defaultServings }: { defaultServings: number }
               ))}
             </div>
           </div>
+          {lunchDinnerCount > 0 && (
+            <div className="space-y-2">
+              <Label>Combien de déjeuners/dîners avec de la viande sur les {lunchDinnerCount} de la semaine ? (optionnel)</Label>
+              <Input
+                type="number"
+                min={0}
+                max={lunchDinnerCount}
+                value={meatMealsCount}
+                onChange={(e) => setMeatMealsCount(e.target.value)}
+                placeholder={`Ex: ${Math.ceil(lunchDinnerCount / 2)}`}
+                disabled={loading}
+              />
+              <p className="text-xs text-muted-foreground">
+                Les repas restants seront sans viande (poisson, œufs, végétarien...).
+              </p>
+            </div>
+          )}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-2">
               <Label>Budget total (optionnel)</Label>
