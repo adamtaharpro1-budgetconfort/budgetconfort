@@ -48,3 +48,9 @@ export async function deleteConversation(conversationId: string) {
   await prisma.chatConversation.deleteMany({ where: { id: conversationId, userId } });
   revalidatePath("/coach");
 }
+
+export async function deleteAllConversations() {
+  const userId = await requireUserId();
+  await prisma.chatConversation.deleteMany({ where: { userId } });
+  revalidatePath("/coach");
+}

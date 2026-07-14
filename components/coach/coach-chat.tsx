@@ -10,7 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Send, Bot, User, TriangleAlert, Plus, MessageSquare, Trash2, Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { createConversation, deleteConversation } from "@/lib/actions/chat";
+import { createConversation, deleteConversation, deleteAllConversations } from "@/lib/actions/chat";
 import { toast } from "sonner";
 
 const SUGGESTIONS = [
@@ -70,8 +70,16 @@ export function CoachChat({
   }
 
   async function handleDelete(id: string) {
+    if (!window.confirm("Supprimer cette conversation ? Cette action est irréversible.")) return;
     await deleteConversation(id);
     if (id === conversationId) window.location.href = "/coach";
+    else window.location.reload();
+  }
+
+  async function handleDeleteAll() {
+    if (!window.confirm(`Supprimer toutes les conversations (${conversations.length}) ? Cette action est irréversible.`)) return;
+    await deleteAllConversations();
+    window.location.href = "/coach";
   }
 
   return (
@@ -86,6 +94,14 @@ export function CoachChat({
             <ConversationRow key={c.id} conversation={c} active={c.id === conversationId} onDelete={handleDelete} />
           ))}
         </div>
+        {conversations.length > 0 && (
+          <button
+            onClick={handleDeleteAll}
+            className="mt-3 flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+          >
+            <Trash2 className="h-3.5 w-3.5" /> Tout supprimer
+          </button>
+        )}
       </aside>
 
       <div className="mx-auto flex w-full max-w-2xl flex-1 flex-col">
@@ -192,6 +208,14 @@ export function CoachChat({
                 />
               ))}
             </div>
+            {conversations.length > 0 && (
+              <button
+                onClick={handleDeleteAll}
+                className="mt-3 flex w-full items-center justify-center gap-1 text-xs text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 className="h-3.5 w-3.5" /> Tout supprimer
+              </button>
+            )}
           </div>
         </div>
       )}
