@@ -39,17 +39,18 @@ async function uploadImage(file: File, prefix: string) {
 export async function scanFridge(formData: FormData): Promise<ActionResult & { recipeIdeas?: string[]; itemCount?: number }> {
   try {
     const { householdId } = await requireSessionHousehold();
-    const file = formData.get("image") as File | null;
-    if (!file) return { ok: false, error: "Aucune image reçue" };
+    const files = formData.getAll("images").filter((f): f is File => f instanceof File && f.size > 0);
+    if (files.length === 0) return { ok: false, error: "Aucune image reçue" };
 
-    let imageUrl: string;
+    let imageUrls: string[];
     try {
-      imageUrl = await uploadImage(file, "fridge");
+      imageUrls = await Promise.all(files.map((file) => uploadImage(file, "fridge")));
     } catch (error) {
       console.error("[scanFridge] blob upload failed:", error);
       return { ok: false, error: "Le stockage d'images (Vercel Blob) n'est pas encore configuré." };
     }
 
+    const multi = imageUrls.length > 1;
     let result;
     try {
       result = await generateObject({
@@ -61,11 +62,15 @@ export async function scanFridge(formData: FormData): Promise<ActionResult & { r
             content: [
               {
                 type: "text",
-                text: `Analyse cette photo de frigo/congélateur/placard de façon EXHAUSTIVE. Sois minutieux : inspecte chaque étagère, la porte, les bacs à légumes, les zones d'ombre et les emballages partiellement cachés ou empilés derrière d'autres produits — pas seulement les 3-4 objets les plus visibles au premier plan. Liste séparément chaque produit différent que tu identifies, même en petite quantité ou en arrière-plan.
-
-Pour chaque aliment : son nom, une quantité estimée, une catégorie, et une estimation du nombre de jours avant péremption si un indice est visible (date, état visuel). Propose aussi jusqu'à 3 idées de recettes rapides avec ces ingrédients.`,
+                text: `Voici ${multi ? `${imageUrls.length} photos` : "une photo"} d'espaces de rangement de nourriture du même foyer (frigo, congélateur, placards...). Analyse-${multi ? "les TOUTES ensemble" : "la"} de façon EXHAUSTIVE. Sois minutieux : inspecte chaque étagère, la porte, les bacs à légumes, les zones d'ombre et les emballages partiellement cachés ou empilés derrière d'autres produits — pas seulement les 3-4 objets les plus visibles au premier plan. Liste séparément chaque produit différent que tu identifies, même en petite quantité ou en arrière-plan.
+${multi ? "\nSi le même produit apparaît sur plusieurs photos, ne le liste qu'une seule fois dans le résultat final (sauf si les quantités sont clairement différentes)." : ""}
+Pour chaque aliment : son nom, une quantité estimée, une catégorie, et une estimation du nombre de jours avant péremption si un indice est visible (date, état visuel). Propose aussi jusqu'à 3 idées de recettes rapides avec l'ensemble de ces ingrédients.`,
               },
-              { type: "image", image: imageUrl, providerOptions: { openai: { imageDetail: "high" } } },
+              ...imageUrls.map((url) => ({
+                type: "image" as const,
+                image: url,
+                providerOptions: { openai: { imageDetail: "high" as const } },
+              })),
             ],
           },
         ],
@@ -84,7 +89,7 @@ Pour chaque aliment : son nom, une quantité estimée, une catégorie, et une es
         quantity: undefined,
         unit: item.estimatedQuantity,
         category: item.category,
-        photo: imageUrl,
+        photo: imageUrls[0],
         expiryDate:
           item.estimatedDaysUntilExpiry != null
             ? new Date(Date.now() + item.estimatedDaysUntilExpiry * 24 * 60 * 60 * 1000)
