@@ -15,6 +15,7 @@ import {
   Users,
   Settings,
   ShieldCheck,
+  History,
   Menu,
   X,
 } from "lucide-react";
@@ -23,6 +24,7 @@ import { cn } from "@/lib/utils";
 const NAV = [
   { href: "/dashboard", label: "Tableau de bord", icon: LayoutDashboard },
   { href: "/budget", label: "Budget", icon: Wallet },
+  { href: "/historique", label: "Historique", icon: History },
   { href: "/objectifs", label: "Objectifs", icon: Target },
   { href: "/tirelires", label: "Tirelires", icon: PiggyBank },
   { href: "/repas", label: "Repas", icon: ChefHat },

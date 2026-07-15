@@ -323,15 +323,51 @@ function ManualMealDialog({
   const [ingredientsText, setIngredientsText] = useState(
     entry?.recipe?.ingredients?.map((i) => i.name).join(", ") ?? ""
   );
+  // Copie figée de la liste initiale, pour détecter si l'utilisateur a réellement changé les
+  // ingrédients (et donc si la recette doit être adaptée) sans dépendre de l'état invalidé.
+  const [initialIngredientsText] = useState(ingredientsText);
   const [aiIngredients, setAiIngredients] = useState<{ name: string; quantity: number | null; unit: string | null }[] | null>(
     entry?.recipe?.ingredients ?? null
   );
   const [aiSteps, setAiSteps] = useState<string[] | null>(entry?.recipe?.steps ?? null);
+  // Le repas avait déjà une recette complète (générée par IA) à l'ouverture : si les ingrédients
+  // changent sans relancer manuellement la génération, on la régénère automatiquement à l'enregistrement
+  // pour que la recette (étapes + quantités) s'adapte au nouvel ingrédient au lieu d'être perdue.
+  const hadFullRecipe = Boolean(entry?.recipe?.steps?.length && entry?.recipe?.ingredients?.length);
 
   function invalidateEstimate() {
     setEstimated(false);
     setAiIngredients(null);
     setAiSteps(null);
+  }
+
+  async function runEstimate() {
+    const result = await estimateManualMealNutrition({
+      name: name.trim(),
+      ingredients: ingredientsText.split(",").map((s) => s.trim()).filter(Boolean),
+      servings: defaultServings,
+    });
+    if (!result.ok) {
+      toast.error(result.error);
+      return null;
+    }
+    if (!result.estimate) {
+      toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
+      return null;
+    }
+    const estimate = result.estimate;
+    setCalories(String(estimate.calories));
+    setGrams(String(estimate.servingWeightGrams));
+    setProteins(String(estimate.proteins));
+    setCarbs(String(estimate.carbs));
+    setFats(String(estimate.fats));
+    setPrepTime(String(estimate.prepTime));
+    setPrice(String(estimate.priceEstimate));
+    setAiIngredients(estimate.ingredients);
+    setAiSteps(estimate.steps);
+    setIngredientsText(estimate.ingredients.map((i) => i.name).join(", "));
+    setEstimated(true);
+    return estimate;
   }
 
   async function handleEstimate() {
@@ -341,31 +377,10 @@ function ManualMealDialog({
     }
     setEstimating(true);
     try {
-      const result = await estimateManualMealNutrition({
-        name: name.trim(),
-        ingredients: ingredientsText.split(",").map((s) => s.trim()).filter(Boolean),
-        servings: defaultServings,
-      });
-      if (!result.ok) {
-        toast.error(result.error);
-        return;
+      const estimate = await runEstimate();
+      if (estimate) {
+        toast.success("Recette générée : ingrédients, étapes, calories et prix estimés — modifiables si besoin");
       }
-      if (!result.estimate) {
-        toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
-        return;
-      }
-      setCalories(String(result.estimate.calories));
-      setGrams(String(result.estimate.servingWeightGrams));
-      setProteins(String(result.estimate.proteins));
-      setCarbs(String(result.estimate.carbs));
-      setFats(String(result.estimate.fats));
-      setPrepTime(String(result.estimate.prepTime));
-      setPrice(String(result.estimate.priceEstimate));
-      setAiIngredients(result.estimate.ingredients);
-      setAiSteps(result.estimate.steps);
-      setIngredientsText(result.estimate.ingredients.map((i) => i.name).join(", "));
-      setEstimated(true);
-      toast.success("Recette générée : ingrédients, étapes, calories et prix estimés — modifiables si besoin");
     } catch {
       toast.error("L'estimation IA a échoué. Réessaie ou saisis les valeurs toi-même.");
     } finally {
@@ -381,6 +396,28 @@ function ManualMealDialog({
     }
     setLoading(true);
     try {
+      // On part des données déjà connues (générées cette session, ou celles de la recette
+      // existante) : la recette n'est donc jamais vidée, même si la régénération IA échoue.
+      let ingredientsForSave = aiIngredients ?? entry?.recipe?.ingredients ?? null;
+      let stepsForSave = aiSteps ?? entry?.recipe?.steps ?? null;
+
+      // Si les ingrédients ont réellement changé (ex: ajout d'un aliment) depuis la dernière
+      // génération sans relancer manuellement l'IA, on l'adapte automatiquement pour que la
+      // recette (étapes + quantités) tienne compte du nouvel ingrédient.
+      const ingredientsChanged = ingredientsText.trim() !== initialIngredientsText.trim();
+      if (!estimated && hadFullRecipe && ingredientsChanged) {
+        const estimate = await runEstimate();
+        if (estimate) {
+          ingredientsForSave = estimate.ingredients;
+          stepsForSave = estimate.steps;
+        } else {
+          // La régénération IA a échoué (ex: trop de requêtes) : on garde les étapes existantes
+          // et on repart de la liste de noms tapée par l'utilisateur pour ne pas perdre le nouvel
+          // ingrédient, plutôt que de bloquer l'enregistrement.
+          ingredientsForSave = null;
+        }
+      }
+
       const result = await saveManualMeal({
         entryId: entry?.id,
         date: new Date(date),
@@ -395,13 +432,13 @@ function ManualMealDialog({
         prepTime: prepTime ? Number(prepTime) : undefined,
         priceEstimate: price ? Number(price) : undefined,
         ingredients:
-          aiIngredients ??
+          ingredientsForSave ??
           ingredientsText
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
             .map((n) => ({ name: n, quantity: null, unit: null })),
-        steps: aiSteps ?? undefined,
+        steps: stepsForSave ?? undefined,
       });
       if (!result.ok) {
         toast.error(result.error);

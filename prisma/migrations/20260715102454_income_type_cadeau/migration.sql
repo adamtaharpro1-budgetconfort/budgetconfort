@@ -1,0 +1,3 @@
+-- AlterEnum
+ALTER TYPE "IncomeType" ADD VALUE 'CADEAU';
+ALTER TYPE "IncomeType" ADD VALUE 'GAIN';

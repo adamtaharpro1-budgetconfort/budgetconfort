@@ -34,9 +34,9 @@ import {
 } from "@/lib/actions/budget";
 import { toast } from "sonner";
 
-const INCOME_TYPES = ["SALAIRE", "PRIME", "FREELANCE", "CAF", "AUTRE"];
+const INCOME_TYPES = ["SALAIRE", "PRIME", "FREELANCE", "CAF", "CADEAU", "GAIN", "AUTRE"];
 const FIXED_CATEGORIES = ["LOYER", "INTERNET", "TELEPHONE", "NETFLIX", "SPOTIFY", "CREDIT", "ASSURANCE", "ELECTRICITE", "GAZ", "ABONNEMENT"];
-const VARIABLE_CATEGORIES = ["RESTAURANT", "SHOPPING", "ESSENCE", "VOYAGES", "LOISIRS", "SANTE", "ANIMAUX", "ENFANTS", "COURSES", "AUTRE"];
+const VARIABLE_CATEGORIES = ["RESTAURANT", "SHOPPING", "ESSENCE", "VOYAGES", "LOISIRS", "SANTE", "ANIMAUX", "ENFANTS", "COURSES"];
 const CUSTOM_CATEGORY_VALUE = "__CUSTOM__";
 
 interface Row {
@@ -56,6 +56,7 @@ export function BudgetClient({
   fixedExpenses,
   transactions,
   customFixedCategories,
+  customVariableCategories,
   currentMonthLabel,
 }: {
   currency: string;
@@ -64,6 +65,7 @@ export function BudgetClient({
   fixedExpenses: Row[];
   transactions: Row[];
   customFixedCategories: string[];
+  customVariableCategories: string[];
   currentMonthLabel: string;
 }) {
   return (
@@ -125,7 +127,7 @@ export function BudgetClient({
         rows={transactions}
         currency={currency}
         onDelete={(id) => deleteTransaction(id)}
-        addDialog={<AddTransactionDialog />}
+        addDialog={<AddTransactionDialog customCategories={customVariableCategories} />}
       />
     </div>
   );
@@ -446,21 +448,32 @@ function EditFixedExpenseDialog({ expense, customCategories }: { expense: Row; c
   );
 }
 
-function AddTransactionDialog() {
+function AddTransactionDialog({ customCategories }: { customCategories: string[] }) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [category, setCategory] = useState("COURSES");
+  const [customCategory, setCustomCategory] = useState("");
+
+  const allCategories = [...VARIABLE_CATEGORIES, ...customCategories.filter((c) => !VARIABLE_CATEGORIES.includes(c))];
 
   async function handleSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
+    const finalCategory = category === CUSTOM_CATEGORY_VALUE ? customCategory.trim() : category;
+    if (!finalCategory) {
+      toast.error("Indique un nom de catégorie");
+      return;
+    }
     setLoading(true);
     const form = new FormData(e.currentTarget);
     try {
       await addTransaction({
         label: form.get("label") as string,
         amount: Number(form.get("amount")),
-        category: form.get("category") as never,
+        category: finalCategory,
       });
       setOpen(false);
+      setCategory("COURSES");
+      setCustomCategory("");
       toast.success("Dépense ajoutée");
     } catch {
       toast.error("Erreur");
@@ -487,13 +500,26 @@ function AddTransactionDialog() {
           </div>
           <div className="space-y-2">
             <Label>Catégorie</Label>
-            <Select name="category" defaultValue="COURSES">
+            <Select value={category} onValueChange={setCategory}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
-                {VARIABLE_CATEGORIES.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                {allCategories.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
+                <SelectItem value={CUSTOM_CATEGORY_VALUE}>Autre (nouvelle catégorie)</SelectItem>
               </SelectContent>
             </Select>
           </div>
+          {category === CUSTOM_CATEGORY_VALUE && (
+            <div className="space-y-2">
+              <Label>Nom de la nouvelle catégorie</Label>
+              <Input
+                value={customCategory}
+                onChange={(e) => setCustomCategory(e.target.value)}
+                placeholder="Ex: Cadeaux"
+                autoFocus
+                required
+              />
+            </div>
+          )}
           <DialogFooter>
             <Button type="submit" disabled={loading}>{loading ? "..." : "Ajouter"}</Button>
           </DialogFooter>

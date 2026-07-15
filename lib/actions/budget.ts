@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { prisma } from "@/lib/prisma";
 import { requireSessionHousehold } from "@/lib/actions/helpers";
-import type { IncomeType, VariableExpenseCategory } from "@prisma/client";
+import type { IncomeType } from "@prisma/client";
 
 export async function addIncome(input: { label: string; amount: number; type: IncomeType }) {
   const { householdId, userId } = await requireSessionHousehold();
@@ -52,7 +52,7 @@ export async function deleteFixedExpense(id: string) {
   revalidatePath("/dashboard");
 }
 
-export async function addTransaction(input: { label: string; amount: number; category: VariableExpenseCategory; date?: Date }) {
+export async function addTransaction(input: { label: string; amount: number; category: string; date?: Date }) {
   const { householdId, userId } = await requireSessionHousehold();
   await prisma.transaction.create({
     data: { ...input, householdId, userId, date: input.date ?? new Date() },

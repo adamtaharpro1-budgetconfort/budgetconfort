@@ -194,6 +194,8 @@ enum IncomeType {
   PRIME
   FREELANCE
   CAF
+  CADEAU
+  GAIN
   AUTRE
 }
 
@@ -221,21 +223,11 @@ model FixedExpense {
   // Date à laquelle la charge s'arrête de compter (ex: fin d'un crédit sur N mois).
   // null = charge permanente, reconduite indéfiniment comme avant.
   endDate     DateTime?
+  // Mois d'ajout de la charge : sert à ne la compter dans l'historique qu'à partir de ce mois-là
+  // (pas de prorata au jour près, elle compte pour le mois entier dès qu'elle est ajoutée).
+  createdAt   DateTime  @default(now())
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
-}
-
-enum VariableExpenseCategory {
-  RESTAURANT
-  SHOPPING
-  ESSENCE
-  VOYAGES
-  LOISIRS
-  SANTE
-  ANIMAUX
-  ENFANTS
-  COURSES
-  AUTRE
 }
 
 enum TransactionSource {
@@ -245,14 +237,14 @@ enum TransactionSource {
 }
 
 model Transaction {
-  id          String                   @id @default(cuid())
+  id          String            @id @default(cuid())
   householdId String
   userId      String?
   label       String
-  category    VariableExpenseCategory
+  category    String
   amount      Float
-  date        DateTime                 @default(now())
-  source      TransactionSource        @default(MANUAL)
+  date        DateTime          @default(now())
+  source      TransactionSource @default(MANUAL)
   receiptId   String?
 
   household Household @relation(fields: [householdId], references: [id], onDelete: Cascade)
