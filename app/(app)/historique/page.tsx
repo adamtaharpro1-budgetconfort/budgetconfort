@@ -13,9 +13,8 @@ function monthParam(date: Date) {
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
 }
 
-/** Parse le paramètre ?month=YYYY-MM ; par défaut le mois précédent (le mois en cours n'est pas encore terminé). */
-function parseMonth(param: string | undefined, now: Date) {
-  if (param && /^\d{4}-\d{2}$/.test(param)) {
+function parseMonth(param: string, now: Date) {
+  if (/^\d{4}-\d{2}$/.test(param)) {
     const [y, m] = param.split("-").map(Number);
     return new Date(y, m - 1, 1);
   }
@@ -28,7 +27,23 @@ export default async function HistoriquePage({ searchParams }: { searchParams: P
 
   const now = new Date();
   const currentMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-  const target = parseMonth(month, now);
+
+  let target = parseMonth(month ?? "", now);
+
+  // Si l'utilisateur n'a pas navigué explicitement et que le mois précédent n'a ni revenu ni
+  // dépense variable (foyer trop récent pour avoir un mois précédent rempli), on ouvre plutôt
+  // sur le mois en cours pour ne pas afficher un faux solde négatif basé sur un mois inexistant.
+  if (!month) {
+    const { start: prevStart, end: prevEnd } = getMonthRange(target);
+    const [prevIncomeCount, prevTransactionCount] = await Promise.all([
+      prisma.income.count({ where: { householdId: household.id, date: { gte: prevStart, lt: prevEnd } } }),
+      prisma.transaction.count({ where: { householdId: household.id, date: { gte: prevStart, lt: prevEnd } } }),
+    ]);
+    if (prevIncomeCount === 0 && prevTransactionCount === 0) {
+      target = currentMonthStart;
+    }
+  }
+
   const { start, end } = getMonthRange(target);
   const isCurrentMonth = start.getTime() === currentMonthStart.getTime();
   const prevMonth = new Date(target.getFullYear(), target.getMonth() - 1, 1);
