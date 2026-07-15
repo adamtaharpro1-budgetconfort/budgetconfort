@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
 import { formatCurrency, formatDate } from "@/lib/utils";
 import Link from "next/link";
-import { Sparkles, TriangleAlert } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { getHouseholdEnvelopes } from "@/lib/actions/envelopes";
 
 export default async function DashboardPage() {
@@ -17,10 +17,8 @@ export default async function DashboardPage() {
   const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate());
   const endOfDay = new Date(startOfDay);
   endOfDay.setDate(endOfDay.getDate() + 1);
-  const soonExpiry = new Date();
-  soonExpiry.setDate(soonExpiry.getDate() + 4);
 
-  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, allEnvelopes, todayMeals, pantrySoon, shoppingList, nutritionProfile, todayLog] =
+  const [user, incomes, fixedExpenses, transactionsThisMonth, goals, allEnvelopes, todayMeals, shoppingList, nutritionProfile, todayLog] =
     await Promise.all([
       prisma.user.findUnique({ where: { id: userId } }),
       prisma.income.findMany({ where: { householdId: household.id, date: { gte: startOfMonth, lt: endOfMonth } } }),
@@ -31,11 +29,6 @@ export default async function DashboardPage() {
       prisma.mealPlanEntry.findMany({
         where: { householdId: household.id, date: { gte: startOfDay, lt: endOfDay } },
         include: { recipe: true },
-      }),
-      prisma.pantryItem.findMany({
-        where: { householdId: household.id, expiryDate: { lte: soonExpiry, gte: now } },
-        take: 5,
-        orderBy: { expiryDate: "asc" },
       }),
       prisma.shoppingList.findFirst({
         where: { householdId: household.id, status: "ACTIVE" },
@@ -137,7 +130,7 @@ export default async function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
+      <div className="grid gap-4 lg:grid-cols-2">
         <Card>
           <CardHeader>
             <CardTitle>Repas du jour</CardTitle>
@@ -170,31 +163,6 @@ export default async function DashboardPage() {
             <p className="text-sm text-muted-foreground">articles à acheter</p>
             <Link href="/courses" className="mt-3 inline-block text-sm text-primary underline-offset-4 hover:underline">
               Voir la liste →
-            </Link>
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <TriangleAlert className="h-4 w-4 text-warning" /> Bientôt périmés
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            {pantrySoon.length === 0 ? (
-              <p className="text-sm text-muted-foreground">Rien à signaler.</p>
-            ) : (
-              <ul className="space-y-1">
-                {pantrySoon.map((p) => (
-                  <li key={p.id} className="text-sm flex justify-between">
-                    <span>{p.name}</span>
-                    <span className="text-muted-foreground">{p.expiryDate ? formatDate(p.expiryDate) : ""}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <Link href="/stock" className="mt-3 inline-block text-sm text-primary underline-offset-4 hover:underline">
-              Voir le stock →
             </Link>
           </CardContent>
         </Card>

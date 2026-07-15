@@ -1,5 +1,5 @@
 import { Card, CardContent } from "@/components/ui/card";
-import { Wallet, ChefHat, ShoppingCart, Apple, Target, ScanLine, Users, Trophy, Plane, Bot } from "lucide-react";
+import { Wallet, ChefHat, ShoppingCart, Apple, Target, Users, Trophy, Plane, Bot } from "lucide-react";
 
 const GROUPS = [
   {
@@ -13,9 +13,9 @@ const GROUPS = [
     items: ["Générateur de repas par IA", "Planning semaine et mois", "Recettes détaillées (temps, prix, calories)", "Repas favoris et aléatoires"],
   },
   {
-    title: "Courses & stock",
+    title: "Courses",
     icon: ShoppingCart,
-    items: ["Liste de courses automatique", "Gestion du stock avec dates de péremption", "Scanner de tickets de caisse", "Historique et duplication de listes"],
+    items: ["Liste de courses automatique", "Rangée par rayon de supermarché", "Historique et duplication de listes"],
   },
   {
     title: "Nutrition",
@@ -26,11 +26,6 @@ const GROUPS = [
     title: "Objectifs & voyages",
     icon: Target,
     items: ["Plusieurs objectifs simultanés", "Calcul automatique de l'épargne hebdomadaire", "Planification de vacances avec budget"],
-  },
-  {
-    title: "Scanner IA",
-    icon: ScanLine,
-    items: ["Photo du frigo → détection des aliments", "Photo du ticket → ajout automatique au budget", "Suggestions de recettes instantanées"],
   },
   {
     title: "Famille",

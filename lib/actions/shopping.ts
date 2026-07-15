@@ -97,16 +97,14 @@ export async function generateShoppingListFromMealPlan() {
   const in7Days = new Date(now);
   in7Days.setDate(in7Days.getDate() + 7);
 
-  const [entries, pantryItems, list] = await Promise.all([
+  const [entries, list] = await Promise.all([
     prisma.mealPlanEntry.findMany({
       where: { householdId, date: { gte: now, lte: in7Days } },
       include: { recipe: { include: { ingredients: true } }, portions: true },
     }),
-    prisma.pantryItem.findMany({ where: { householdId }, select: { name: true } }),
     getOrCreateActiveList(householdId),
   ]);
 
-  const pantryNames = new Set(pantryItems.map((p) => p.name.toLowerCase().trim()));
   const needed = new Map<string, { quantity: number; unit?: string }>();
 
   for (const entry of entries) {
@@ -123,7 +121,6 @@ export async function generateShoppingListFromMealPlan() {
 
     for (const ing of entry.recipe.ingredients) {
       const key = ing.name.toLowerCase().trim();
-      if (pantryNames.has(key)) continue;
       const existing = needed.get(key);
       const scaledQuantity = (ing.quantity ?? 1) * scale;
       needed.set(key, { quantity: (existing?.quantity ?? 0) + scaledQuantity, unit: ing.unit ?? existing?.unit });

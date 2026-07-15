@@ -19,7 +19,6 @@ const PLANS = [
     features: [
       "Tout le plan gratuit",
       "Générateur de repas IA illimité",
-      "Scanner frigo & tickets illimité",
       "Objectifs financiers illimités",
       "Coach IA illimité",
       "Mode famille (jusqu'à 6 comptes)",

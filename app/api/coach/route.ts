@@ -52,13 +52,12 @@ export async function POST(req: Request) {
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
 
-    const [incomes, fixedExpenses, transactions, goals, nutritionProfile, pantryItems] = await Promise.all([
+    const [incomes, fixedExpenses, transactions, goals, nutritionProfile] = await Promise.all([
       prisma.income.findMany({ where: { householdId } }),
       prisma.fixedExpense.findMany({ where: { householdId, ...activeFixedExpenseWhere(now) } }),
       prisma.transaction.findMany({ where: { householdId, date: { gte: startOfMonth } } }),
       prisma.financialGoal.findMany({ where: { householdId } }),
       prisma.nutritionProfile.findUnique({ where: { userId } }),
-      prisma.pantryItem.findMany({ where: { householdId }, take: 20, select: { name: true } }),
     ]);
 
     const totalIncome = incomes.reduce((s, i) => s + i.amount, 0);
@@ -72,8 +71,7 @@ Budget restant ce mois-ci : ${budget.budgetRemaining} ${membership.household.cur
 Budget quotidien disponible : ${budget.dailyBudget} ${membership.household.currency}
 Prévision fin de mois : ${budget.projectedEndOfMonth} ${membership.household.currency}
 Objectifs financiers : ${goals.map((g) => `${g.name} (${g.currentAmount}/${g.targetAmount})`).join(", ") || "aucun"}
-Profil nutritionnel : objectif calorique ${nutritionProfile?.calorieTarget ?? "non défini"} kcal/jour, allergies : ${nutritionProfile?.allergies?.join(", ") || "aucune"}
-Produits en stock : ${pantryItems.map((p) => p.name).join(", ") || "aucun"}`;
+Profil nutritionnel : objectif calorique ${nutritionProfile?.calorieTarget ?? "non défini"} kcal/jour, allergies : ${nutritionProfile?.allergies?.join(", ") || "aucune"}`;
   }
 
   const result = streamText({

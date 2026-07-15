@@ -74,16 +74,13 @@ const GOAL_LABELS: Record<string, string> = {
 
 /** Contexte nutritionnel/foyer partagé par la génération d'un plan complet et la régénération d'un seul repas. */
 async function buildMealPlanContext(userId: string, householdId: string, servings: number) {
-  const [nutritionProfile, pantryItems, members] = await Promise.all([
+  const [nutritionProfile, members] = await Promise.all([
     prisma.nutritionProfile.findUnique({ where: { userId } }),
-    prisma.pantryItem.findMany({ where: { householdId }, take: 30, select: { name: true } }),
     prisma.householdMember.findMany({
       where: { householdId },
       include: { user: { include: { nutritionProfile: true } } },
     }),
   ]);
-
-  const pantryNames = pantryItems.map((p) => p.name).join(", ") || "aucun produit en stock connu";
 
   // Besoins caloriques + objectif de chaque membre, pour dimensionner ses portions individuelles.
   // Volontairement AUCUNE portion chiffrée (calories/grammes) pour les enfants de moins de 16 ans :
@@ -130,7 +127,7 @@ async function buildMealPlanContext(userId: string, householdId: string, serving
       ? `Objectifs individuels à prendre en compte (les portions de chacun seront ajustées automatiquement selon ses calories, mais privilégie des recettes qui restent adaptées à un objectif de perte de poids quand c'est pertinent — légères, riches en protéines, pas trop caloriques) : ${goalNotes.join(", ")}.`
       : "";
 
-  return { nutritionProfile, pantryNames, memberProfiles, householdBreakdown, goalBlock };
+  return { nutritionProfile, memberProfiles, householdBreakdown, goalBlock };
 }
 
 /** Crée les portions individuelles d'un repas (part des calories selon le besoin de chaque membre). */
@@ -193,7 +190,6 @@ ${meatBlock}
 - Allergies à éviter absolument : ${ctx.nutritionProfile?.allergies?.join(", ") || "aucune"}
 - Préférences alimentaires : ${ctx.nutritionProfile?.preferences?.join(", ") || "aucune"}
 - Cuisine souhaitée : ${input.cuisine || "variée"}
-- Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${ctx.pantryNames}
 ${input.preferredIngredients ? `- Ingrédients que la famille aime et veut manger cette semaine (construis les recettes AUTOUR de ces ingrédients autant que possible, répartis-les intelligemment sur les différents repas plutôt que de tous les mettre dans une seule recette) : ${input.preferredIngredients}` : ""}
 
 Pour chaque recette, donne un nom, le temps de préparation, la difficulté, les calories d'UNE portion standard, le poids en grammes d'UNE portion standard (servingWeightGrams), un prix estimé en euros, les macronutriments (protéines/glucides/lipides en grammes), les ingrédients avec quantités pour l'ensemble des convives, et les étapes de préparation numérotées. Termine par un court message de conseil personnalisé (adviceMessage) sur ce menu.`;
@@ -451,7 +447,6 @@ Contraintes :
 - Objectif calorique quotidien de référence : ${ctx.nutritionProfile?.calorieTarget ?? "environ 2000"} kcal
 - Allergies à éviter absolument : ${ctx.nutritionProfile?.allergies?.join(", ") || "aucune"}
 - Préférences alimentaires : ${ctx.nutritionProfile?.preferences?.join(", ") || "aucune"}
-- Produits déjà disponibles à la maison (à réutiliser en priorité si pertinent) : ${ctx.pantryNames}
 - La nouvelle recette doit être clairement différente de la précédente (autre plat, pas juste une variante).
 
 Donne un nom, le temps de préparation, la difficulté, les calories d'UNE portion standard, le poids en grammes d'UNE portion standard (servingWeightGrams), un prix estimé en euros, les macronutriments (protéines/glucides/lipides en grammes), les ingrédients avec quantités pour l'ensemble des convives, et les étapes de préparation numérotées. Termine par un court message de conseil (adviceMessage).`;

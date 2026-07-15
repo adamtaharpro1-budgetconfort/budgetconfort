@@ -1,7 +1,7 @@
 const FAQS = [
   { q: "LifePilot AI est-il gratuit ?", a: "Oui, un plan gratuit complet est disponible. Le plan Premium débloque les fonctionnalités IA illimitées." },
-  { q: "Mes données bancaires sont-elles connectées ?", a: "Pas pour l'instant. Tu saisis tes revenus et dépenses manuellement ou via le scanner de tickets. La synchronisation bancaire arrive en V3." },
-  { q: "Comment fonctionne le générateur de repas IA ?", a: "L'IA prend en compte ton budget, tes calories, ton temps disponible, tes allergies et le contenu de ton stock pour proposer un menu complet avec liste de courses." },
+  { q: "Mes données bancaires sont-elles connectées ?", a: "Pas pour l'instant. Tu saisis tes revenus et dépenses manuellement. La synchronisation bancaire arrive en V3." },
+  { q: "Comment fonctionne le générateur de repas IA ?", a: "L'IA prend en compte ton budget, tes calories, ton temps disponible et tes allergies pour proposer un menu complet avec liste de courses." },
   { q: "Puis-je utiliser LifePilot AI en famille ?", a: "Oui, le mode famille permet de créer plusieurs profils et de partager repas, courses, budget et objectifs." },
   { q: "Mes données sont-elles sécurisées ?", a: "Oui, chiffrement, authentification sécurisée et conformité RGPD avec export et suppression de tes données à tout moment." },
   { q: "Puis-je annuler à tout moment ?", a: "Oui, aucun engagement, résiliation en un clic depuis tes paramètres." },

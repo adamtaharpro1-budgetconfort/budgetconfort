@@ -8,7 +8,6 @@ import {
   Apple,
   Target,
   Sparkles,
-  ScanLine,
   Users,
   Trophy,
 } from "lucide-react";
@@ -16,10 +15,9 @@ import {
 const FEATURES = [
   { icon: Wallet, title: "Budget & finances", desc: "Revenus, charges, prévisions et alertes automatiques." },
   { icon: ChefHat, title: "Repas générés par l'IA", desc: "Un menu complet selon ton budget, tes calories et tes envies." },
-  { icon: ShoppingCart, title: "Courses intelligentes", desc: "Liste générée automatiquement à partir de tes repas et de ton stock." },
+  { icon: ShoppingCart, title: "Courses intelligentes", desc: "Liste générée automatiquement à partir de tes repas." },
   { icon: Apple, title: "Nutrition sur-mesure", desc: "IMC, calories, macros calculés et suivis au quotidien." },
   { icon: Target, title: "Objectifs financiers", desc: "Épargne, voyages, projets : progression suivie semaine après semaine." },
-  { icon: ScanLine, title: "Scanner frigo & tickets", desc: "Prends une photo, l'IA fait le reste." },
   { icon: Users, title: "Mode famille", desc: "Partagez budget, repas et objectifs entre tous les membres du foyer." },
   { icon: Trophy, title: "Défis & récompenses", desc: "Reste motivé avec des défis, badges et un score quotidien." },
 ];
